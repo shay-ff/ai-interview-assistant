@@ -1,0 +1,53 @@
+/* Global styles for full-screen layout */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.app {
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.app h1 {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: #1890ff;
+}
+
+.app p {
+  text-align: center;
+  color: #666;
+}
+
+/* Ensure Ant Design components use full height */
+.ant-layout {
+  height: 100%;
+}
+
+.ant-layout-content {
+  height: 100%;
+}
+
+/* Custom scrollbar for better UX */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
