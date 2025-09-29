@@ -1,11 +1,13 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice, createSelector } from '@reduxjs/toolkit';
 import type { InterviewState, StartInterviewPayload, SubmitAnswerPayload, UpdateTimerPayload, RootState } from '../../types/store';
-import type { InterviewSession, Question, Answer, QuestionDifficulty } from '../../types/interview';
+import type { InterviewSession, Answer } from '../../types/interview';
+import type { QuestionDifficulty } from '../../types/common';
 
 const initialState: InterviewState = {
   currentSession: null,
   currentQuestionIndex: 0,
+  isIntroductionPhase: true, // Add flag to track interview phase
   timer: {
     isActive: false,
     remainingTime: 0,
@@ -143,6 +145,7 @@ const interviewSlice = createSlice({
     resetInterview: (state) => {
       state.currentSession = null;
       state.currentQuestionIndex = 0;
+      state.isIntroductionPhase = true; // Reset to introduction phase
       state.timer = {
         isActive: false,
         remainingTime: 0,
@@ -166,6 +169,19 @@ const interviewSlice = createSlice({
         state.currentSession.timerState.remainingTime = timeLimit;
         state.currentSession.timerState.startTime = Date.now();
         state.currentSession.timerState.isActive = true;
+      }
+    },
+    startAutoTimer: (state) => {
+      // Start timer automatically after introduction
+      if (state.currentSession && state.currentSession.questions.length > 0) {
+        const firstQuestion = state.currentSession.questions[0];
+        const timeLimit = getTimeLimit(firstQuestion.difficulty);
+        state.timer.isActive = true;
+        state.timer.remainingTime = timeLimit;
+        state.timer.startTime = Date.now();
+        state.currentSession.timerState.isActive = true;
+        state.currentSession.timerState.remainingTime = timeLimit;
+        state.currentSession.timerState.startTime = Date.now();
       }
     },
     timeUp: (state) => {
@@ -201,6 +217,65 @@ const interviewSlice = createSlice({
           state.isInterviewActive = false;
           state.timer.isActive = false;
         }
+      }
+    },
+    // New reducers for optimized interview flow
+    startTechnicalPhase: (state) => {
+      // Transition from introduction to technical questions
+      state.isIntroductionPhase = false;
+      
+      // Only start timer for technical phase
+      if (state.currentSession && state.currentSession.questions.length > 0) {
+        const firstQuestion = state.currentSession.questions[0];
+        const timeLimit = getTimeLimit(firstQuestion.difficulty);
+        state.timer.isActive = true;
+        state.timer.remainingTime = timeLimit;
+        state.timer.startTime = Date.now();
+        state.currentSession.timerState.isActive = true;
+        state.currentSession.timerState.remainingTime = timeLimit;
+        state.currentSession.timerState.startTime = Date.now();
+      }
+    },
+    collectAnswer: (state, action: PayloadAction<{ questionId: string; answer: string; timeSpent: number }>) => {
+      // Collect answer without immediate API processing
+      if (state.currentSession) {
+        const answer: Answer = {
+          questionId: action.payload.questionId,
+          text: action.payload.answer,
+          timeSpent: action.payload.timeSpent,
+          timestamp: new Date(),
+        };
+        state.currentSession.answers.push(answer);
+        
+        // Move to next question
+        if (state.currentQuestionIndex < state.currentSession.questions.length - 1) {
+          state.currentQuestionIndex += 1;
+          state.currentSession.currentQuestionIndex = state.currentQuestionIndex;
+          
+          // Set timer for next question
+          const nextQuestion = state.currentSession.questions[state.currentQuestionIndex];
+          const timeLimit = getTimeLimit(nextQuestion.difficulty);
+          state.timer.remainingTime = timeLimit;
+          state.timer.startTime = Date.now();
+          state.timer.isActive = true;
+          state.currentSession.timerState.remainingTime = timeLimit;
+          state.currentSession.timerState.startTime = Date.now();
+          state.currentSession.timerState.isActive = true;
+        } else {
+          // All questions answered - ready for batch processing
+          state.currentSession.status = 'awaiting-evaluation';
+          state.timer.isActive = false;
+        }
+      }
+    },
+    setBatchEvaluationResult: (state, action: PayloadAction<any>) => {
+      // Store the batch evaluation result
+      if (state.currentSession) {
+        state.currentSession.evaluationResult = action.payload;
+        state.currentSession.status = 'completed';
+        state.currentSession.endTime = new Date();
+        state.isInterviewActive = false;
+        state.timer.isActive = false;
       }
     },
   },
@@ -314,6 +389,11 @@ export const {
   resetInterview,
   nextQuestion,
   timeUp,
+  startAutoTimer,
+  // New optimized actions
+  startTechnicalPhase,
+  collectAnswer,
+  setBatchEvaluationResult,
 } = interviewSlice.actions;
 
 export default interviewSlice;

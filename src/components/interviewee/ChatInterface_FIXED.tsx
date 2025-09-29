@@ -5,7 +5,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { startAutoTimer, submitAnswer, startInterview } from '../../store/slices/interviewSlice';
 import { updateInterviewProgress as updateCandidateProgress } from '../../store/slices/candidateSlice';
 import { aiService } from '../../services/enhancedAIService';
+import { LocalAIService } from '../../services/localAIService';
 import type { RootState } from '../../store';
+
+// Fallback - use local AI service if enhanced service fails
+const localAIService = new LocalAIService();
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -144,43 +148,28 @@ const ChatInterface: React.FC = () => {
             setMessages(prev => [...prev, firstQuestion]);
           }
         } catch (error) {
-          console.error('Failed to generate questions with Groq:', error);
-          // Use fallback questions if AI fails
-          const fallbackQuestions = [
-            { 
-              id: '1', 
-              text: 'Tell me about your professional background and experience.', 
-              category: 'General', 
-              difficulty: 'easy' as const, 
-              timeLimit: 60,
-              order: 1,
-              createdAt: new Date()
-            },
-            { 
-              id: '2', 
-              text: 'What technical skills do you bring to this role?', 
-              category: 'Technical', 
-              difficulty: 'medium' as const, 
-              timeLimit: 90,
-              order: 2,
-              createdAt: new Date()
-            },
-            { 
-              id: '3', 
-              text: 'Describe a challenging project you worked on and how you solved it.', 
-              category: 'Problem Solving', 
-              difficulty: 'hard' as const, 
-              timeLimit: 120,
-              order: 3,
-              createdAt: new Date()
-            },
-          ];
-          
-          dispatch(startInterview({
-            candidateId: selectedCandidate.id,
-            questions: fallbackQuestions,
-          }));
-          setQuestionsGenerated(true);
+          console.error('Failed to generate questions with Groq, using local AI:', error);
+          // Fallback to local AI
+          try {
+            const localResult = await localAIService.generateQuestions(
+              selectedCandidate.resumeFile?.content || selectedCandidate.summary || '',
+              {
+                name: selectedCandidate.name,
+                email: selectedCandidate.email,
+                phone: selectedCandidate.phone,
+                text: selectedCandidate.resumeFile?.content || selectedCandidate.summary || '',
+                missing: [],
+              }
+            );
+            
+            dispatch(startInterview({
+              candidateId: selectedCandidate.id,
+              questions: localResult.questions,
+            }));
+            setQuestionsGenerated(true);
+          } catch (localError) {
+            console.error('Both Groq and local AI failed:', localError);
+          }
         }
       }
     };

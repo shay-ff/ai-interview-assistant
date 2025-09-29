@@ -28,9 +28,10 @@ export interface InterviewSession {
   startTime: Date;
   endTime?: Date;
   timerState: TimerState;
-  status: 'not-started' | 'in-progress' | 'paused' | 'completed';
+  status: 'not-started' | 'in-progress' | 'paused' | 'completed' | 'awaiting-evaluation';
   totalScore?: number;
   summary?: string;
+  evaluationResult?: any; // Store batch evaluation result from Groq
 }
 
 export interface TimerState {
@@ -52,6 +53,10 @@ export interface QuestionGenerationRequest {
 export interface QuestionGenerationResult {
   questions: Question[];
   totalGenerated: number;
+  summary?: string;
+  confidence?: number;
+  detectedSkills?: string[];
+  experienceLevel?: 'junior' | 'mid' | 'senior';
 }
 
 export type QuestionGenerationResponse = ServiceResponse<QuestionGenerationResult>;

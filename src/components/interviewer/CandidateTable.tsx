@@ -1,92 +1,58 @@
-import React, { useState } from 'react';
-import { Table, Tag, Button, Space, Input, Select, Avatar, Typography, Rate } from 'antd';
-import { SearchOutlined, EyeOutlined, DownloadOutlined, UserOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Table, Tag, Button, Space, Input, Select, Avatar, Typography, Rate, Progress, Modal, Descriptions, Card, Divider } from 'antd';
+import { SearchOutlined, EyeOutlined, DownloadOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, TrophyOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
 import type { ColumnsType } from 'antd/es/table';
+import type { RootState } from '../../store';
+import type { Candidate, AnswerFeedback } from '../../types/candidate';
 
 const { Text } = Typography;
 const { Option } = Select;
 
-interface Candidate {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  score: number;
-  status: 'completed' | 'in-progress' | 'not-started';
-  interviewDate: string;
-  resumeFile: string;
-  summary: string;
-}
 
-// Sample data
-const sampleCandidates: Candidate[] = [
-  {
-    id: '1',
-    name: 'John Smith',
-    email: 'john.smith@email.com',
-    phone: '+1 (555) 123-4567',
-    score: 85,
-    status: 'completed',
-    interviewDate: '2024-01-15',
-    resumeFile: 'john_smith_resume.pdf',
-    summary: 'Experienced React developer with strong problem-solving skills',
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    email: 'sarah.johnson@email.com',
-    phone: '+1 (555) 234-5678',
-    score: 92,
-    status: 'completed',
-    interviewDate: '2024-01-14',
-    resumeFile: 'sarah_johnson_resume.pdf',
-    summary: 'Full-stack developer with excellent communication abilities',
-  },
-  {
-    id: '3',
-    name: 'Mike Chen',
-    email: 'mike.chen@email.com',
-    phone: '+1 (555) 345-6789',
-    score: 78,
-    status: 'in-progress',
-    interviewDate: '2024-01-16',
-    resumeFile: 'mike_chen_resume.docx',
-    summary: 'Backend specialist with cloud architecture experience',
-  },
-  {
-    id: '4',
-    name: 'Emily Davis',
-    email: 'emily.davis@email.com',
-    phone: '+1 (555) 456-7890',
-    score: 0,
-    status: 'not-started',
-    interviewDate: '2024-01-17',
-    resumeFile: 'emily_davis_resume.pdf',
-    summary: 'Frontend developer with UI/UX design background',
-  },
-  {
-    id: '5',
-    name: 'Alex Rodriguez',
-    email: 'alex.rodriguez@email.com',
-    phone: '+1 (555) 567-8901',
-    score: 88,
-    status: 'completed',
-    interviewDate: '2024-01-13',
-    resumeFile: 'alex_rodriguez_resume.pdf',
-    summary: 'DevOps engineer with strong automation skills',
-  },
-];
+
+
 
 const CandidateTable: React.FC = () => {
+  const candidates = useSelector((state: RootState) => state.candidates?.list || []);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [filteredData, setFilteredData] = useState<Candidate[]>(sampleCandidates);
+  const [filteredData, setFilteredData] = useState<Candidate[]>([]);
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  
+  // Update filtered data when candidates change
+  useEffect(() => {
+    let filtered = [...candidates];
+    
+    // Apply search filter
+    if (searchText) {
+      const searchLower = searchText.toLowerCase();
+      filtered = filtered.filter(candidate => 
+        candidate.name.toLowerCase().includes(searchLower) ||
+        candidate.email.toLowerCase().includes(searchLower) ||
+        candidate.phone.includes(searchText) ||
+        candidate.summary.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(candidate => {
+        const status = candidate.interviewProgress?.status || 'not-started';
+        return status === statusFilter;
+      });
+    }
+    
+    setFilteredData(filtered);
+  }, [candidates, searchText, statusFilter]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'green';
       case 'in-progress': return 'blue';
-      case 'not-started': return 'orange';
+      case 'paused': return 'orange';
+      case 'not-started': return 'default';
       default: return 'default';
     }
   };
@@ -110,17 +76,21 @@ const CandidateTable: React.FC = () => {
   };
 
   const filterData = (search: string, status: string) => {
-    let filtered = sampleCandidates;
+    let filtered = [...candidates];
 
     if (search) {
-      filtered = filtered.filter(candidate =>
+      filtered = filtered.filter((candidate: Candidate) =>
         candidate.name.toLowerCase().includes(search.toLowerCase()) ||
-        candidate.email.toLowerCase().includes(search.toLowerCase())
+        candidate.email.toLowerCase().includes(search.toLowerCase()) ||
+        candidate.summary.toLowerCase().includes(search.toLowerCase())
       );
     }
 
     if (status !== 'all') {
-      filtered = filtered.filter(candidate => candidate.status === status);
+      filtered = filtered.filter((candidate: Candidate) => {
+        const candidateStatus = candidate.interviewProgress?.status || 'not-started';
+        return candidateStatus === status;
+      });
     }
 
     setFilteredData(filtered);
@@ -199,6 +169,66 @@ const CandidateTable: React.FC = () => {
       sorter: (a, b) => a.score - b.score,
     },
     {
+      title: 'Interview Progress',
+      key: 'interviewProgress',
+      render: (_, record: Candidate) => {
+        const progress = record.interviewProgress;
+        if (!progress) {
+          return <Text type="secondary">Not started</Text>;
+        }
+
+        const progressPercent = progress.totalQuestions ? 
+          Math.round((progress.answersSubmitted || 0) / progress.totalQuestions * 100) : 0;
+        
+        const getStatusTag = (status: string) => {
+          switch (status) {
+            case 'completed':
+              return <Tag color="green" icon={<CheckCircleOutlined />}>Completed</Tag>;
+            case 'in-progress':
+              return <Tag color="blue" icon={<ClockCircleOutlined />}>In Progress</Tag>;
+            case 'paused':
+              return <Tag color="orange">Paused</Tag>;
+            default:
+              return <Tag color="default">Not Started</Tag>;
+          }
+        };
+
+        return (
+          <div style={{ minWidth: 120 }}>
+            {getStatusTag(progress.status)}
+            {progress.totalQuestions && (
+              <div style={{ marginTop: 4 }}>
+                <Progress 
+                  percent={progressPercent} 
+                  size="small" 
+                  showInfo={false}
+                />
+                <Text type="secondary" style={{ fontSize: '11px' }}>
+                  {progress.answersSubmitted || 0}/{progress.totalQuestions} questions
+                </Text>
+              </div>
+            )}
+            {progress.allAnswersFeedback && progress.allAnswersFeedback.length > 0 && (
+              <div style={{ marginTop: 4 }}>
+                <Button 
+                  type="link" 
+                  size="small" 
+                  icon={<TrophyOutlined />}
+                  onClick={() => {
+                    setSelectedCandidate(record);
+                    setFeedbackModalVisible(true);
+                  }}
+                  style={{ padding: 0, height: 'auto' }}
+                >
+                  View Feedback
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       title: 'Summary',
       dataIndex: 'summary',
       key: 'summary',
@@ -254,7 +284,7 @@ const CandidateTable: React.FC = () => {
         </Select>
 
         <Text type="secondary">
-          Showing {filteredData.length} of {sampleCandidates.length} candidates
+          Showing {filteredData.length} of {candidates.length} candidates
         </Text>
       </div>
 
@@ -274,6 +304,104 @@ const CandidateTable: React.FC = () => {
         scroll={{ x: 1200, y: 'calc(100vh - 300px)' }}
         size="middle"
       />
+
+      {/* Interview Feedback Modal */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TrophyOutlined />
+            Interview Feedback - {selectedCandidate?.name}
+          </div>
+        }
+        open={feedbackModalVisible}
+        onCancel={() => setFeedbackModalVisible(false)}
+        footer={null}
+        width={800}
+      >
+        {selectedCandidate?.interviewProgress?.allAnswersFeedback && (
+          <div>
+            {selectedCandidate.interviewProgress.allAnswersFeedback.map((feedback: AnswerFeedback, index: number) => (
+              <Card 
+                key={feedback.questionId} 
+                style={{ marginBottom: 16 }}
+                title={`Question ${index + 1}`}
+                extra={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Rate disabled value={feedback.score / 20} style={{ fontSize: 12 }} />
+                    <Text strong style={{ color: feedback.score >= 70 ? '#52c41a' : feedback.score >= 50 ? '#faad14' : '#ff4d4f' }}>
+                      {feedback.score}/100
+                    </Text>
+                  </div>
+                }
+              >
+                <Descriptions column={1} size="small">
+                  <Descriptions.Item label="Question">
+                    <Text>{feedback.question}</Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Answer">
+                    <Text type="secondary">{feedback.answer}</Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Time">
+                    {feedback.timeSpent}s / {feedback.timeLimit}s
+                    <Progress 
+                      percent={Math.min(100, (feedback.timeSpent / feedback.timeLimit) * 100)}
+                      size="small"
+                      style={{ marginTop: 4 }}
+                      strokeColor={feedback.timeSpent <= feedback.timeLimit ? '#52c41a' : '#ff4d4f'}
+                    />
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Feedback">
+                    <Text>{feedback.feedback}</Text>
+                  </Descriptions.Item>
+                  {feedback.strengths.length > 0 && (
+                    <Descriptions.Item label="Strengths">
+                      {feedback.strengths.map((strength, i) => (
+                        <Tag key={i} color="green" style={{ marginBottom: 4 }}>
+                          {strength}
+                        </Tag>
+                      ))}
+                    </Descriptions.Item>
+                  )}
+                  {feedback.improvements.length > 0 && (
+                    <Descriptions.Item label="Areas for Improvement">
+                      {feedback.improvements.map((improvement, i) => (
+                        <Tag key={i} color="orange" style={{ marginBottom: 4 }}>
+                          {improvement}
+                        </Tag>
+                      ))}
+                    </Descriptions.Item>
+                  )}
+                </Descriptions>
+                {index < (selectedCandidate.interviewProgress?.allAnswersFeedback?.length || 0) - 1 && <Divider />}
+              </Card>
+            ))}
+            
+            {/* Overall Summary */}
+            <Card title="Overall Performance Summary" style={{ marginTop: 16, backgroundColor: '#fafafa' }}>
+              <Descriptions column={2}>
+                <Descriptions.Item label="Total Questions">
+                  {selectedCandidate.interviewProgress.totalQuestions || 0}
+                </Descriptions.Item>
+                <Descriptions.Item label="Questions Answered">
+                  {selectedCandidate.interviewProgress.answersSubmitted || 0}
+                </Descriptions.Item>
+                <Descriptions.Item label="Average Score">
+                  {selectedCandidate.interviewProgress.allAnswersFeedback?.length ? 
+                    Math.round(
+                      selectedCandidate.interviewProgress.allAnswersFeedback.reduce((sum, f) => sum + f.score, 0) / 
+                      selectedCandidate.interviewProgress.allAnswersFeedback.length
+                    ) : 0}/100
+                </Descriptions.Item>
+                <Descriptions.Item label="Status">
+                  <Tag color={getStatusColor(selectedCandidate.interviewProgress.status)}>
+                    {selectedCandidate.interviewProgress.status.replace('-', ' ').toUpperCase()}
+                  </Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

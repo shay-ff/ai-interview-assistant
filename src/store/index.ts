@@ -8,16 +8,30 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignore redux-persist actions and Date objects
+        // Ignore redux-persist actions
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
         ignoredActionsPaths: ['meta.arg', 'payload.timestamp'],
-        ignoredPaths: ['items.dates'],
+        // Ignore File objects and Date objects in specific paths
+        ignoredPaths: [
+          'items.dates',
+          'candidates.list',
+          '_persist',
+        ],
+        // Ignore File and Date types in serialization check
+        isSerializable: (value: any) => {
+          // Allow File objects and Date objects to pass through
+          if (value instanceof File || value instanceof Date) {
+            return true;
+          }
+          // Default check for other values
+          return typeof value !== 'function' && typeof value !== 'symbol';
+        },
       },
       // Enable thunk middleware for async actions
       thunk: true,
     }),
   // Enable Redux DevTools in development
-  devTools: process.env.NODE_ENV !== 'production',
+  devTools: import.meta.env.MODE !== 'production',
 });
 
 // Create persistor for store hydration/rehydration

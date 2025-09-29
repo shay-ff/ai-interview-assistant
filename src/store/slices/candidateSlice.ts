@@ -1,7 +1,7 @@
 import { createSlice, createSelector } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { CandidateState, UpdateCandidatePayload, SetSortPayload, RootState } from '../../types/store';
-import type { Candidate } from '../../types/candidate';
+import type { Candidate, InterviewProgress } from '../../types/candidate';
 import type { SortBy, SortOrder } from '../../types/common';
 
 const initialState: CandidateState = {
@@ -86,10 +86,20 @@ const candidateSlice = createSlice({
       // Check if candidate already exists
       const existingIndex = state.list.findIndex(c => c.id === action.payload.id);
       if (existingIndex === -1) {
+        const now = new Date().toISOString();
         state.list.push({
           ...action.payload,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: now as any,
+          updatedAt: now as any,
+          // Initialize interview progress
+          interviewProgress: {
+            status: 'not-started',
+            currentQuestion: 0,
+            totalQuestions: 0,
+            answersSubmitted: 0,
+            timeSpent: 0,
+            lastActivity: now as any,
+          },
         });
         state.totalCount = state.list.length;
         updateFilteredList(state);
@@ -101,7 +111,7 @@ const candidateSlice = createSlice({
         state.list[index] = { 
           ...state.list[index], 
           ...action.payload.updates,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString() as any,
         };
         updateFilteredList(state);
       }
@@ -134,7 +144,7 @@ const candidateSlice = createSlice({
       const { ids, updates } = action.payload;
       state.list = state.list.map(candidate => 
         ids.includes(candidate.id) 
-          ? { ...candidate, ...updates, updatedAt: new Date() }
+          ? { ...candidate, ...updates, updatedAt: new Date().toISOString() as any }
           : candidate
       );
       updateFilteredList(state);
@@ -142,6 +152,60 @@ const candidateSlice = createSlice({
     // Action to refresh filtered list (useful after external updates)
     refreshFilteredList: (state) => {
       updateFilteredList(state);
+    },
+    // Update interview progress for a candidate
+    updateInterviewProgress: (state, action: PayloadAction<{
+      candidateId: string;
+      progress: Partial<InterviewProgress>;
+    }>) => {
+      const { candidateId, progress } = action.payload;
+      const candidate = state.list.find(c => c.id === candidateId);
+      if (candidate) {
+        // Initialize interview progress if it doesn't exist
+        if (!candidate.interviewProgress) {
+          candidate.interviewProgress = {
+            status: 'not-started',
+            currentQuestion: 0,
+            totalQuestions: 0,
+            answersSubmitted: 0,
+            timeSpent: 0,
+            lastActivity: new Date().toISOString() as any,
+          };
+        }
+        
+        // Update with provided values
+        if (progress.status !== undefined) {
+          candidate.interviewProgress.status = progress.status;
+        }
+        if (progress.currentQuestion !== undefined) {
+          candidate.interviewProgress.currentQuestion = progress.currentQuestion;
+        }
+        if (progress.totalQuestions !== undefined) {
+          candidate.interviewProgress.totalQuestions = progress.totalQuestions;
+        }
+        if (progress.answersSubmitted !== undefined) {
+          candidate.interviewProgress.answersSubmitted = progress.answersSubmitted;
+        }
+        if (progress.timeSpent !== undefined) {
+          candidate.interviewProgress.timeSpent = progress.timeSpent;
+        }
+        if (progress.lastAnswerFeedback !== undefined) {
+          candidate.interviewProgress.lastAnswerFeedback = progress.lastAnswerFeedback;
+        }
+        if (progress.allAnswersFeedback !== undefined) {
+          candidate.interviewProgress.allAnswersFeedback = progress.allAnswersFeedback;
+        }
+        if (progress.completedAt !== undefined) {
+          candidate.interviewProgress.completedAt = progress.completedAt;
+        }
+        candidate.interviewProgress.lastActivity = new Date().toISOString() as any;
+        
+        // Update main candidate status
+        candidate.status = progress.status === 'completed' ? 'completed' : 
+                          progress.status === 'in-progress' ? 'in-progress' : 'pending';
+        candidate.updatedAt = new Date().toISOString() as any;
+        updateFilteredList(state);
+      }
     },
   },
 });
@@ -296,6 +360,7 @@ export const {
   clearCandidates,
   bulkUpdateCandidates,
   refreshFilteredList,
+  updateInterviewProgress,
 } = candidateSlice.actions;
 
 export default candidateSlice;

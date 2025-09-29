@@ -1,33 +1,103 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Progress, Typography, Button, Space, Tag } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Progress, Typography, Button, Space, Tag, App } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, ReloadOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { useSelector, useDispatch } from 'react-redux';
+import { 
+  updateTimer, 
+  pauseInterview, 
+  resumeInterview, 
+  timeUp,
+  selectTimer,
+  selectCurrentQuestionIndex,
+  selectTotalQuestions,
+  selectIsInterviewActive,
+  selectCurrentQuestion 
+} from '../../store/slices/interviewSlice';
+import type { RootState } from '../../store';
 
 const { Title, Text } = Typography;
 
-const Timer: React.FC = () => {
-  const [timeRemaining, setTimeRemaining] = useState(300); // 5 minutes in seconds
-  const [isActive, setIsActive] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const totalQuestions = 5;
+interface TimerProps {
+  questionId?: string;
+  timeLimit?: number; // in seconds
+  onTimeUp?: () => void;
+  autoSubmit?: boolean;
+}
 
+const Timer: React.FC<TimerProps> = ({ 
+  questionId,
+  timeLimit,
+  onTimeUp,
+  autoSubmit = true 
+}) => {
+  const dispatch = useDispatch();
+  const { message } = App.useApp();
+  
+  // Get timer state from Redux using selectors
+  const timer = useSelector(selectTimer);
+  const currentQuestionIndex = useSelector(selectCurrentQuestionIndex);
+  const totalQuestions = useSelector(selectTotalQuestions);
+  const isInterviewActive = useSelector(selectIsInterviewActive);
+  const currentQuestion = useSelector(selectCurrentQuestion);
+  
+  // OPTIMIZATION: Check if we're in introduction phase
+  const isIntroductionPhase = useSelector((state: RootState) => state.interview?.isIntroductionPhase);
+
+  // Local state for UI updates
+  const [localTimeRemaining, setLocalTimeRemaining] = useState(timer.remainingTime);
+  const [isActive, setIsActive] = useState(timer.isActive);
+
+  // Sync local state with Redux state when it changes
+  useEffect(() => {
+    setLocalTimeRemaining(timer.remainingTime);
+    setIsActive(timer.isActive);
+  }, [timer]);
+
+  // Handle timer expiration and auto-submit
+  const handleTimeUp = useCallback(() => {
+    setIsActive(false);
+    
+    if (autoSubmit) {
+      // Dispatch timeUp action which handles auto-submitting empty answer
+      dispatch(timeUp());
+      message.warning('Time is up! Moving to next question...');
+    }
+    
+    if (onTimeUp) {
+      onTimeUp();
+    }
+  }, [autoSubmit, dispatch, message, onTimeUp]);
+
+  // Main timer logic - ONLY runs during technical phase
   useEffect(() => {
     let interval: number | null = null;
 
-    if (isActive && !isPaused && timeRemaining > 0) {
+    // OPTIMIZATION: Timer only runs when NOT in introduction phase
+    if (isActive && localTimeRemaining > 0 && isInterviewActive && !isIntroductionPhase) {
       interval = setInterval(() => {
-        setTimeRemaining(time => time - 1);
+        setLocalTimeRemaining((prevTime: number) => {
+          const newTime = prevTime - 1;
+          
+          // Update Redux state every second
+          dispatch(updateTimer({
+            remainingTime: newTime,
+            isActive: true,
+          }));
+          
+          // Auto-submit when time reaches 0
+          if (newTime === 0) {
+            handleTimeUp();
+          }
+          
+          return newTime;
+        });
       }, 1000);
-    } else if (timeRemaining === 0) {
-      setIsActive(false);
-      // Auto-advance to next question when time runs out
-      handleNextQuestion();
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, isPaused, timeRemaining]);
+  }, [isActive, localTimeRemaining, isInterviewActive, isIntroductionPhase, dispatch, handleTimeUp]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -36,38 +106,84 @@ const Timer: React.FC = () => {
   };
 
   const getProgressPercent = () => {
-    return ((300 - timeRemaining) / 300) * 100;
+    const limit = timeLimit || timer.remainingTime || 60;
+    return ((limit - localTimeRemaining) / limit) * 100;
   };
 
   const getProgressStatus = () => {
-    if (timeRemaining <= 30) return 'exception';
-    if (timeRemaining <= 60) return 'active';
+    if (localTimeRemaining <= 10) return 'exception';
+    if (localTimeRemaining <= 30) return 'active';
     return 'normal';
   };
 
   const handleStart = () => {
     setIsActive(true);
-    setIsPaused(false);
+    dispatch(updateTimer({
+      remainingTime: localTimeRemaining,
+      isActive: true,
+    }));
   };
 
   const handlePause = () => {
-    setIsPaused(!isPaused);
+    if (isActive) {
+      dispatch(pauseInterview());
+    } else {
+      dispatch(resumeInterview());
+    }
   };
 
   const handleReset = () => {
-    setTimeRemaining(300);
+    const resetTime = timeLimit || (currentQuestion ? 
+      (currentQuestion.difficulty === 'easy' ? 20 : 
+       currentQuestion.difficulty === 'medium' ? 60 : 120) : 60);
+    
+    setLocalTimeRemaining(resetTime);
     setIsActive(false);
-    setIsPaused(false);
+    
+    dispatch(updateTimer({
+      remainingTime: resetTime,
+      isActive: false,
+    }));
   };
 
-  const handleNextQuestion = () => {
-    if (currentQuestion < totalQuestions) {
-      setCurrentQuestion(prev => prev + 1);
-      setTimeRemaining(300);
-      setIsActive(false);
-      setIsPaused(false);
+  // Show warning when time is low
+  useEffect(() => {
+    if (localTimeRemaining === 30 && isActive) {
+      message.warning('30 seconds remaining!');
+    } else if (localTimeRemaining === 10 && isActive) {
+      message.error('10 seconds remaining!');
     }
+  }, [localTimeRemaining, isActive, message]);
+
+  const getTimeColor = () => {
+    if (localTimeRemaining <= 10) return '#ff4d4f';
+    if (localTimeRemaining <= 30) return '#faad14';
+    return '#1890ff';
   };
+
+  // OPTIMIZATION: Don't show timer during introduction phase
+  if (isIntroductionPhase) {
+    return (
+      <Card 
+        title={
+          <Space>
+            <ClockCircleOutlined />
+            Interview Status
+          </Space>
+        }
+        style={{ height: '100%' }}
+      >
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: '24px', marginBottom: '16px' }}>
+            🎤 Introduction Phase
+          </div>
+          <Text type="secondary">
+            Take your time to introduce yourself. The timer will start when we begin the technical questions.
+          </Text>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card 
@@ -79,19 +195,21 @@ const Timer: React.FC = () => {
       }
       style={{ height: '100%' }}
     >
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <Tag color="blue" style={{ fontSize: '14px', padding: '4px 12px' }}>
-          Question {currentQuestion} of {totalQuestions}
-        </Tag>
-      </div>
+      {totalQuestions > 0 && (
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <Tag color="blue" style={{ fontSize: '14px', padding: '4px 12px' }}>
+            Question {currentQuestionIndex + 1} of {totalQuestions}
+          </Tag>
+        </div>
+      )}
 
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
         <Title level={1} style={{ 
           fontSize: '48px', 
           margin: 0,
-          color: timeRemaining <= 30 ? '#ff4d4f' : timeRemaining <= 60 ? '#faad14' : '#1890ff'
+          color: getTimeColor()
         }}>
-          {formatTime(timeRemaining)}
+          {formatTime(localTimeRemaining)}
         </Title>
         <Text type="secondary">Time Remaining</Text>
       </div>
@@ -105,7 +223,7 @@ const Timer: React.FC = () => {
         format={() => (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
-              {formatTime(timeRemaining)}
+              {formatTime(localTimeRemaining)}
             </div>
             <div style={{ fontSize: '12px', color: '#666' }}>
               remaining
@@ -122,17 +240,19 @@ const Timer: React.FC = () => {
               icon={<PlayCircleOutlined />}
               onClick={handleStart}
               size="large"
+              disabled={!isInterviewActive}
             >
               Start Timer
             </Button>
           ) : (
             <Button 
-              type={isPaused ? "primary" : "default"}
+              type="default"
               icon={<PauseCircleOutlined />}
               onClick={handlePause}
               size="large"
+              disabled={!isInterviewActive}
             >
-              {isPaused ? 'Resume' : 'Pause'}
+              Pause
             </Button>
           )}
           
@@ -140,22 +260,13 @@ const Timer: React.FC = () => {
             icon={<ReloadOutlined />}
             onClick={handleReset}
             size="large"
+            disabled={!isInterviewActive}
           >
             Reset
           </Button>
         </Space>
 
-        {currentQuestion < totalQuestions && (
-          <Button 
-            type="dashed" 
-            onClick={handleNextQuestion}
-            style={{ width: '100%' }}
-          >
-            Next Question ({currentQuestion + 1}/{totalQuestions})
-          </Button>
-        )}
-
-        {timeRemaining <= 30 && timeRemaining > 0 && (
+        {localTimeRemaining <= 30 && localTimeRemaining > 0 && isActive && (
           <div style={{ 
             padding: '8px', 
             backgroundColor: '#fff2f0', 
@@ -164,6 +275,32 @@ const Timer: React.FC = () => {
             textAlign: 'center'
           }}>
             <Text type="danger" strong>⚠️ Time running out!</Text>
+          </div>
+        )}
+
+        {!isActive && isInterviewActive && localTimeRemaining > 0 && (
+          <div style={{ 
+            padding: '8px', 
+            backgroundColor: '#f6ffed', 
+            border: '1px solid #b7eb8f',
+            borderRadius: '6px',
+            textAlign: 'center'
+          }}>
+            <Text style={{ color: '#52c41a' }}>⏸️ Timer Paused</Text>
+          </div>
+        )}
+
+        {autoSubmit && (
+          <div style={{ 
+            padding: '8px', 
+            backgroundColor: '#f0f9ff', 
+            border: '1px solid #91d5ff',
+            borderRadius: '6px',
+            textAlign: 'center'
+          }}>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              ℹ️ Your answer will be automatically submitted when time runs out
+            </Text>
           </div>
         )}
       </Space>
