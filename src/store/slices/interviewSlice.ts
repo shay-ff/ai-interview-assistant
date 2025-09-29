@@ -142,6 +142,24 @@ const interviewSlice = createSlice({
       state.isInterviewActive = false;
       state.timer.isActive = false;
     },
+    startNewInterview: (state) => {
+      // Reset interview state while keeping candidate data
+      state.currentSession = null;
+      state.currentQuestionIndex = 0;
+      state.isIntroductionPhase = true;
+      state.timer = {
+        isActive: false,
+        remainingTime: 0,
+        startTime: 0,
+        totalPausedTime: 0,
+      };
+      state.isInterviewActive = false;
+      state.error = null;
+      // Clear step from localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('interviewee-current-step');
+      }
+    },
     resetInterview: (state) => {
       state.currentSession = null;
       state.currentQuestionIndex = 0;
@@ -154,6 +172,26 @@ const interviewSlice = createSlice({
       };
       state.isInterviewActive = false;
       state.error = null;
+    },
+    restoreSession: (state, action: PayloadAction<InterviewSession>) => {
+      state.currentSession = action.payload;
+      state.currentQuestionIndex = action.payload.currentQuestionIndex;
+      state.isIntroductionPhase = false; // Resume from technical questions
+      state.isInterviewActive = true;
+      
+      // Restore timer state if interview is still in progress
+      if (action.payload.status === 'in-progress' || action.payload.status === 'paused') {
+        const currentQuestion = action.payload.questions[action.payload.currentQuestionIndex];
+        if (currentQuestion) {
+          const timeLimit = getTimeLimit(currentQuestion.difficulty);
+          state.timer = {
+            isActive: action.payload.status === 'in-progress',
+            remainingTime: action.payload.timerState.remainingTime || timeLimit,
+            startTime: action.payload.timerState.startTime || Date.now(),
+            totalPausedTime: action.payload.timerState.totalPausedTime || 0,
+          };
+        }
+      }
     },
     nextQuestion: (state) => {
       if (state.currentSession && state.currentQuestionIndex < state.currentSession.questions.length - 1) {
@@ -386,7 +424,9 @@ export const {
   pauseInterview,
   resumeInterview,
   endInterview,
+  startNewInterview,
   resetInterview,
+  restoreSession,
   nextQuestion,
   timeUp,
   startAutoTimer,

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Layout as AntLayout, Menu, Button } from 'antd';
+import { Layout as AntLayout, Menu } from 'antd';
 import { HomeOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import WelcomeBackModal from './WelcomeBackModal';
 
 const { Header, Content } = AntLayout;
 
@@ -71,6 +72,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       }}>
         {children}
       </Content>
+      
+      <WelcomeBackModal />
     </AntLayout>
   );
 };

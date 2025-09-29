@@ -19,6 +19,7 @@ const CandidateTable: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [filteredData, setFilteredData] = useState<Candidate[]>([]);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [interviewDetailsModalVisible, setInterviewDetailsModalVisible] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   
   // Update filtered data when candidates change
@@ -63,6 +64,39 @@ const CandidateTable: React.FC = () => {
     if (score >= 70) return '#faad14';
     if (score >= 60) return '#fa8c16';
     return '#ff4d4f';
+  };
+
+  // Helper function to download resume
+  const handleDownloadResume = (candidate: Candidate) => {
+    try {
+      if (candidate.resumeFile.content) {
+        // Create blob from base64 content
+        const byteCharacters = atob(candidate.resumeFile.content);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: candidate.resumeFile.type });
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = candidate.resumeFile.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        // If no content, show file info instead
+        console.warn('Resume content not available:', candidate.resumeFile.name);
+        alert(`Resume: ${candidate.resumeFile.name} (${(candidate.resumeFile.size / 1024).toFixed(1)} KB)\nContent not stored for download.`);
+      }
+    } catch (error) {
+      console.error('Error downloading resume:', error);
+      alert('Error downloading resume. Please try again.');
+    }
   };
 
   const handleSearch = (value: string) => {
@@ -244,14 +278,19 @@ const CandidateTable: React.FC = () => {
             type="primary" 
             size="small" 
             icon={<EyeOutlined />}
-            onClick={() => console.log('View details for:', record.id)}
+            onClick={() => {
+              setSelectedCandidate(record);
+              setInterviewDetailsModalVisible(true);
+            }}
           >
             View
           </Button>
           <Button 
             size="small" 
             icon={<DownloadOutlined />}
-            onClick={() => console.log('Download resume for:', record.id)}
+            onClick={() => handleDownloadResume(record)}
+            disabled={!record.resumeFile.content}
+            title={record.resumeFile.content ? `Download ${record.resumeFile.name}` : 'Resume content not available'}
           >
             Resume
           </Button>
@@ -399,6 +438,204 @@ const CandidateTable: React.FC = () => {
                 </Descriptions.Item>
               </Descriptions>
             </Card>
+          </div>
+        )}
+      </Modal>
+
+      {/* Interview Details Modal */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <EyeOutlined />
+            Interview Details - {selectedCandidate?.name}
+          </div>
+        }
+        open={interviewDetailsModalVisible}
+        onCancel={() => setInterviewDetailsModalVisible(false)}
+        footer={null}
+        width={900}
+        style={{ top: 20 }}
+      >
+        {selectedCandidate && (
+          <div>
+            {/* Candidate Overview */}
+            <Card 
+              title="Candidate Information" 
+              style={{ marginBottom: 16 }}
+              size="small"
+            >
+              <Descriptions column={2} size="small">
+                <Descriptions.Item label="Name">{selectedCandidate.name}</Descriptions.Item>
+                <Descriptions.Item label="Email">{selectedCandidate.email}</Descriptions.Item>
+                <Descriptions.Item label="Phone">{selectedCandidate.phone}</Descriptions.Item>
+                <Descriptions.Item label="Interview Date">
+                  {new Date(selectedCandidate.interviewDate).toLocaleDateString()}
+                </Descriptions.Item>
+                <Descriptions.Item label="Status">
+                  <Tag color={getStatusColor(selectedCandidate.status)}>
+                    {selectedCandidate.status.replace('-', ' ').toUpperCase()}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Overall Score">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Text strong style={{ 
+                      color: selectedCandidate.score >= 70 ? '#52c41a' : 
+                             selectedCandidate.score >= 50 ? '#faad14' : '#ff4d4f' 
+                    }}>
+                      {selectedCandidate.score}/100
+                    </Text>
+                    <Rate disabled value={selectedCandidate.score / 20} style={{ fontSize: 14 }} />
+                  </div>
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+
+            {/* Interview Progress */}
+            {selectedCandidate.interviewProgress && (
+              <Card 
+                title="Interview Progress" 
+                style={{ marginBottom: 16 }}
+                size="small"
+              >
+                <Descriptions column={2} size="small">
+                  <Descriptions.Item label="Status">
+                    <Tag color={getStatusColor(selectedCandidate.interviewProgress.status)}>
+                      {selectedCandidate.interviewProgress.status.replace('-', ' ').toUpperCase()}
+                    </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Questions Progress">
+                    {selectedCandidate.interviewProgress.answersSubmitted || 0}/
+                    {selectedCandidate.interviewProgress.totalQuestions || 0}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Time Spent">
+                    {selectedCandidate.interviewProgress.timeSpent ? 
+                      `${Math.floor(selectedCandidate.interviewProgress.timeSpent / 60)}m ${selectedCandidate.interviewProgress.timeSpent % 60}s` : 
+                      'N/A'
+                    }
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Completed At">
+                    {selectedCandidate.interviewProgress.completedAt ? 
+                      new Date(selectedCandidate.interviewProgress.completedAt).toLocaleString() : 
+                      'Not completed'
+                    }
+                  </Descriptions.Item>
+                </Descriptions>
+                {selectedCandidate.interviewProgress.totalQuestions && (
+                  <div style={{ marginTop: 12 }}>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>Progress</Text>
+                    <Progress 
+                      percent={Math.round(((selectedCandidate.interviewProgress.answersSubmitted || 0) / 
+                               selectedCandidate.interviewProgress.totalQuestions) * 100)}
+                      strokeColor={{
+                        '0%': '#108ee9',
+                        '100%': '#87d068',
+                      }}
+                    />
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Summary */}
+            {selectedCandidate.summary && (
+              <Card 
+                title="Interview Summary" 
+                style={{ marginBottom: 16 }}
+                size="small"
+              >
+                <Text>{selectedCandidate.summary}</Text>
+              </Card>
+            )}
+
+            {/* Questions and Answers */}
+            {selectedCandidate.interviewProgress?.allAnswersFeedback && 
+             selectedCandidate.interviewProgress.allAnswersFeedback.length > 0 ? (
+              <Card title="Questions & Answers" size="small">
+                {selectedCandidate.interviewProgress.allAnswersFeedback.map((feedback: AnswerFeedback, index: number) => (
+                  <Card 
+                    key={feedback.questionId} 
+                    style={{ marginBottom: 12 }}
+                    size="small"
+                    title={
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Question {index + 1}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                            {feedback.timeSpent}s / {feedback.timeLimit}s
+                          </Text>
+                          <Rate disabled value={feedback.score / 20} style={{ fontSize: 12 }} />
+                          <Text strong style={{ 
+                            color: feedback.score >= 70 ? '#52c41a' : 
+                                   feedback.score >= 50 ? '#faad14' : '#ff4d4f',
+                            fontSize: '12px'
+                          }}>
+                            {feedback.score}/100
+                          </Text>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ display: 'block', marginBottom: 4 }}>Q:</Text>
+                      <Text>{feedback.question}</Text>
+                    </div>
+                    
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ display: 'block', marginBottom: 4 }}>A:</Text>
+                      <Text type="secondary">{feedback.answer}</Text>
+                    </div>
+
+                    {feedback.feedback && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text strong style={{ display: 'block', marginBottom: 4 }}>Feedback:</Text>
+                        <Text>{feedback.feedback}</Text>
+                      </div>
+                    )}
+
+                    {(feedback.strengths.length > 0 || feedback.improvements.length > 0) && (
+                      <div>
+                        {feedback.strengths.length > 0 && (
+                          <div style={{ marginBottom: 8 }}>
+                            <Text strong style={{ display: 'block', marginBottom: 4, fontSize: '12px' }}>
+                              Strengths:
+                            </Text>
+                            {feedback.strengths.map((strength, i) => (
+                              <Tag key={i} color="green">
+                                {strength}
+                              </Tag>
+                            ))}
+                          </div>
+                        )}
+                        {feedback.improvements.length > 0 && (
+                          <div>
+                            <Text strong style={{ display: 'block', marginBottom: 4, fontSize: '12px' }}>
+                              Areas for Improvement:
+                            </Text>
+                            {feedback.improvements.map((improvement, i) => (
+                              <Tag key={i} color="orange">
+                                {improvement}
+                              </Tag>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </Card>
+            ) : (
+              <Card title="Questions & Answers" size="small">
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <Text type="secondary">
+                    {selectedCandidate.interviewProgress?.status === 'not-started' 
+                      ? 'Interview has not been started yet.'
+                      : selectedCandidate.interviewProgress?.status === 'in-progress'
+                      ? 'Interview is currently in progress.'
+                      : 'No interview data available.'}
+                  </Text>
+                </div>
+              </Card>
+            )}
           </div>
         )}
       </Modal>
