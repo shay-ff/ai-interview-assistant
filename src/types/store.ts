@@ -6,6 +6,7 @@ import type { AppError, ActiveTab, SortBy, SortOrder } from './common';
 export interface InterviewState {
   currentSession: InterviewSession | null;
   currentQuestionIndex: number;
+  isIntroductionPhase: boolean; // Track whether we're in intro or technical phase
   timer: TimerState;
   isInterviewActive: boolean;
   error: AppError | null;

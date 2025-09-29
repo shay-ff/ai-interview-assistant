@@ -7,59 +7,64 @@ import interviewSlice from '../slices/interviewSlice';
 import candidateSlice from '../slices/candidateSlice';
 import uiSlice from '../slices/uiSlice';
 
-// Transform for handling File objects in candidate data
-const fileTransform = createTransform(
+// Transform for handling File objects and Date objects in candidate data
+const candidateTransform = createTransform(
   // Transform state on its way to being serialized and persisted
   (inboundState: any) => {
-    if (inboundState && inboundState.list) {
-      return {
-        ...inboundState,
-        list: inboundState.list.map((candidate: any) => {
-          if (candidate.resumeFile instanceof File) {
-            // Convert File to serializable format
-            return {
-              ...candidate,
-              resumeFile: {
-                name: candidate.resumeFile.name,
-                size: candidate.resumeFile.size,
-                type: candidate.resumeFile.type,
-                lastModified: candidate.resumeFile.lastModified,
-                // Store file content as base64 for persistence
-                content: null, // Will be handled by file reading service
-                isPersistedFile: true,
-              },
-            };
-          }
-          return candidate;
-        }),
-      };
+    if (!inboundState || !inboundState.list) {
+      return inboundState;
     }
-    return inboundState;
+    
+    return {
+      ...inboundState,
+      list: inboundState.list.map((candidate: any) => {
+        const transformed = { ...candidate };
+        
+        // Handle File objects - convert to metadata
+        if (candidate.resumeFile instanceof File) {
+          transformed.resumeFile = {
+            name: candidate.resumeFile.name,
+            size: candidate.resumeFile.size,
+            type: candidate.resumeFile.type,
+            lastModified: candidate.resumeFile.lastModified,
+          };
+        }
+        
+        // Handle Date objects - convert to ISO strings
+        ['createdAt', 'updatedAt', 'interviewDate'].forEach(field => {
+          if (candidate[field] instanceof Date) {
+            transformed[field] = candidate[field].toISOString();
+          }
+        });
+        
+        return transformed;
+      }),
+    };
   },
   // Transform state being rehydrated
   (outboundState: any) => {
-    if (outboundState && outboundState.list) {
-      return {
-        ...outboundState,
-        list: outboundState.list.map((candidate: any) => {
-          if (candidate.resumeFile && candidate.resumeFile.isPersistedFile) {
-            // Create a placeholder File object for persisted files
-            // Note: Actual file content will need to be re-uploaded or cached separately
-            const fileData = candidate.resumeFile;
-            const file = new File([], fileData.name, {
-              type: fileData.type,
-              lastModified: fileData.lastModified,
-            });
-            return {
-              ...candidate,
-              resumeFile: file,
-            };
-          }
-          return candidate;
-        }),
-      };
+    if (!outboundState || !outboundState.list) {
+      return outboundState;
     }
-    return outboundState;
+    
+    return {
+      ...outboundState,
+      list: outboundState.list.map((candidate: any) => {
+        const transformed = { ...candidate };
+        
+        // Keep resume file as metadata (don't recreate File objects)
+        // This ensures we don't have File objects in the Redux state
+        
+        // Handle Date strings - convert back to Date objects
+        ['createdAt', 'updatedAt', 'interviewDate'].forEach(field => {
+          if (typeof candidate[field] === 'string') {
+            transformed[field] = new Date(candidate[field]);
+          }
+        });
+        
+        return transformed;
+      }),
+    };
   },
   // Apply transform only to candidates slice
   { whitelist: ['candidates'] }
@@ -122,7 +127,7 @@ const persistConfig = {
   storage,
   whitelist: ['candidates', 'interview'], // Only persist these slices
   blacklist: ['ui'], // Don't persist UI state
-  transforms: [fileTransform, dateTransform],
+  transforms: [candidateTransform, dateTransform],
   // Throttle writes to avoid excessive persistence calls
   throttle: 1000,
 };
@@ -131,7 +136,7 @@ const persistConfig = {
 const candidatePersistConfig = {
   key: 'candidates',
   storage,
-  transforms: [fileTransform],
+  transforms: [candidateTransform],
 };
 
 const interviewPersistConfig = {

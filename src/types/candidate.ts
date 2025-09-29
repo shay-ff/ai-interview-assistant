@@ -1,17 +1,53 @@
 import type { InterviewStatus, ServiceResponse, BaseComponentProps, WithError, WithLoading } from './common';
 
+// Serializable file metadata for Redux storage
+export interface ResumeFileMetadata {
+  name: string;
+  size: number;
+  type: string;
+  lastModified: number;
+  content?: string; // Base64 encoded content for persistence
+}
+
+export interface AnswerFeedback {
+  questionId: string;
+  question: string;
+  answer: string;
+  timeSpent: number;
+  timeLimit: number;
+  score: number;
+  feedback: string;
+  strengths: string[];
+  improvements: string[];
+  confidence: number;
+  timestamp: Date | string;
+}
+
+export interface InterviewProgress {
+  status: 'not-started' | 'in-progress' | 'paused' | 'completed';
+  currentQuestion?: number;
+  totalQuestions?: number;
+  answersSubmitted?: number;
+  timeSpent?: number; // in seconds
+  lastActivity?: Date | string;
+  lastAnswerFeedback?: AnswerFeedback;
+  completedAt?: Date | string;
+  allAnswersFeedback?: AnswerFeedback[]; // Store all feedback for comprehensive analysis
+}
+
 export interface Candidate {
   id: string;
   name: string;
   email: string;
   phone: string;
-  resumeFile: File;
+  resumeFile: ResumeFileMetadata; 
   score: number;
   summary: string;
-  interviewDate: Date;
+  interviewDate: Date | string; // Can be Date object or ISO string for persistence
   status: InterviewStatus;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | string; // Can be Date object or ISO string for persistence
+  updatedAt: Date | string; // Can be Date object or ISO string for persistence
+  interviewProgress?: InterviewProgress; // Optional for backwards compatibility
 }
 
 export interface ContactInfo {
@@ -35,7 +71,7 @@ export interface CreateCandidateRequest {
   name: string;
   email: string;
   phone: string;
-  resumeFile: File;
+  resumeFile: File; // Still use File for creation, will be converted to metadata
 }
 
 export interface UpdateCandidateRequest {

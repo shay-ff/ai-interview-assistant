@@ -32,7 +32,54 @@ A comprehensive React-based application designed to streamline the interview pro
 - **Code Quality**: ESLint, Prettier, and strict TypeScript configuration
 - **Debug Tools**: Built-in debugging modal for resume parsing
 
-## 🛠️ Tech Stack
+## � Quick Start
+
+### Prerequisites
+- Node.js 18+ and npm
+
+### Installation
+```bash
+git clone <repository-url>
+cd ai-interview-assistant
+npm install
+```
+
+### Environment Setup
+Create a `.env` file in the root directory with your AI service API keys:
+
+```bash
+# AI Service Configuration (choose one or more)
+VITE_GROQ_API_KEY=your_groq_api_key_here
+VITE_OPENAI_API_KEY=your_openai_api_key_here
+VITE_ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Optional: For Ollama local AI
+VITE_OLLAMA_BASE_URL=http://localhost:11434
+```
+
+**Note**: The application will work with local AI fallback if no API keys are provided, but AI-powered features will be limited.
+
+### Development
+```bash
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Testing
+```bash
+npm test              # Run tests in watch mode
+npm run test:run      # Run tests once
+npm run test:coverage # Run with coverage report
+```
+
+### Build
+```bash
+npm run build
+npm run preview
+```
+
+## �🛠️ Tech Stack
 
 ### **Frontend**
 - **React 19** - Latest React with concurrent features
