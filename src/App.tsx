@@ -2,13 +2,15 @@ import React from 'react';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ConfigProvider, theme, Spin } from 'antd';
+import { ConfigProvider, theme, Spin, App as AntApp } from 'antd';
 import { store, persistor } from './store';
 import Layout from './components/common/Layout';
 import Landing from './pages/Landing';
 import Interviewee from './pages/Interviewee';
 import Interviewer from './pages/Interviewer';
 import './utils/debugApi'; // Initialize debug API
+import './utils/testDebugApi'; // Initialize test utilities
+import './utils/fileTypeDebug'; // Initialize file type debug utilities
 import './App.css';
 
 const { defaultAlgorithm } = theme;
@@ -39,21 +41,23 @@ function App() {
             },
           }}
         >
-          <Router>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/interviewee" element={
-                <Layout>
-                  <Interviewee />
-                </Layout>
-              } />
-              <Route path="/interviewer" element={
-                <Layout>
-                  <Interviewer />
-                </Layout>
-              } />
-            </Routes>
-          </Router>
+          <AntApp>
+            <Router>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/interviewee" element={
+                  <Layout>
+                    <Interviewee />
+                  </Layout>
+                } />
+                <Route path="/interviewer" element={
+                  <Layout>
+                    <Interviewer />
+                  </Layout>
+                } />
+              </Routes>
+            </Router>
+          </AntApp>
         </ConfigProvider>
       </PersistGate>
     </Provider>

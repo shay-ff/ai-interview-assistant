@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, Button, message, Card, Typography, Alert, Space, Progress, Tag } from 'antd';
+import { Upload, Button, Card, Typography, Alert, Space, Progress, Tag, App } from 'antd';
 import {
   UploadOutlined,
   FileTextOutlined,
@@ -12,6 +12,8 @@ import { useDispatch } from 'react-redux';
 import { ResumeParserService } from '../../services/resumeParser';
 import { ValidationService } from '../../services/validationService';
 import { ResumeDebugModal } from '../common/ResumeDebugModal';
+import ManualDataForm from './ManualDataForm';
+import FileTypeTester from './FileTypeTester';
 import DebugApi from '../../utils/debugApi';
 import { addCandidate } from '../../store/slices/candidateSlice';
 import type { ContactInfo, Candidate } from '../../types/candidate';
@@ -25,6 +27,7 @@ interface ResumeUploadProps {
 
 const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
   const dispatch = useDispatch();
+  const { message } = App.useApp();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [debugModalVisible, setDebugModalVisible] = useState(false);
@@ -35,26 +38,53 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
     contactInfo: ContactInfo;
   } | null>(null);
   const [validationResult, setValidationResult] = useState<any>(null);
+  const [manualFormVisible, setManualFormVisible] = useState(false);
+  const [pendingContactInfo, setPendingContactInfo] = useState<ContactInfo | null>(null);
 
   const resumeParser = new ResumeParserService();
 
   const handleUpload = async () => {
+    console.log('=== UPLOAD PROCESS STARTED ===');
+    console.log('1️⃣ FileList length:', fileList.length);
+    console.log('1️⃣ FileList contents:', fileList);
+
     if (fileList.length === 0) {
       message.error('Please select a file first');
       return;
     }
 
     const file = fileList[0];
-    if (!file.originFileObj) {
-      message.error('Invalid file');
+    console.log('2️⃣ File from fileList:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      uid: file.uid,
+      status: file.status,
+      hasOriginFileObj: !!file.originFileObj,
+      originFileObj: file.originFileObj,
+      isFile: file instanceof File,
+      fileKeys: Object.keys(file)
+    });
+
+    const fileToUpload = (file.originFileObj || file) as File;
+    console.log('3️⃣ FileToUpload:', {
+      name: fileToUpload.name,
+      size: fileToUpload.size,
+      type: fileToUpload.type,
+      isFile: fileToUpload instanceof File,
+      constructor: fileToUpload.constructor.name,
+      hasArrayBuffer: typeof fileToUpload.arrayBuffer === 'function'
+    });
+
+    if (!(fileToUpload instanceof File)) {
+      message.error('Invalid File Object');
       return;
     }
-
     setUploading(true);
 
     try {
       // Parse the resume using the ResumeParserService
-      const contactInfo = await resumeParser.parseResume(file.originFileObj);
+      const contactInfo = await resumeParser.parseResume(fileToUpload);
 
       // Store parsed data for debug modal and API
       const debugData = {
@@ -68,6 +98,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
 
       // Store in debug API for console access
       DebugApi.storeResumeData(debugData);
+      console.log('Resume data stored in debug API:', debugData);
 
       // Create candidate object and add to Redux store
       const candidate: Candidate = {
@@ -75,7 +106,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         name: contactInfo.name || 'Unknown',
         email: contactInfo.email || '',
         phone: contactInfo.phone || '',
-        resumeFile: file.originFileObj,
+        resumeFile: fileToUpload,
         score: 0, // Will be calculated during interview
         summary: contactInfo.text.substring(0, 200) + (contactInfo.text.length > 200 ? '...' : ''),
         interviewDate: new Date(),
@@ -87,28 +118,54 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
       // Validate the parsed data
       const validation = ValidationService.validateContactInfo(contactInfo);
       setValidationResult(validation);
-      
-      dispatch(addCandidate(candidate));
 
-      // Show validation results
-      if (validation.isValid) {
+      // Check if we need manual confirmation
+      if (!validation.isValid || validation.score < 70) {
+        // Show manual form for confirmation/correction
+        setPendingContactInfo(contactInfo);
+        setManualFormVisible(true);
+        message.warning('Please review and confirm your information before proceeding.');
+      } else {
+        // Auto-proceed with high confidence data
+        dispatch(addCandidate(candidate));
+
         if (validation.warnings.length > 0) {
           message.warning(ValidationService.getValidationMessage(validation));
         } else {
           message.success('Resume parsed and validated successfully!');
         }
-      } else {
-        message.error(ValidationService.getValidationMessage(validation));
-      }
 
-      onUploadComplete();
+        onUploadComplete();
+      }
     } catch (error) {
       console.error('Error parsing resume:', error);
       message.error(
-        `Failed to parse resume: ${
-          error instanceof Error ? error.message : 'Unknown error'
+        `Failed to parse resume: ${error instanceof Error ? error.message : 'Unknown error'
         }`
       );
+
+      // Offer manual entry option
+      setPendingContactInfo({
+        text: '',
+        missing: ['name', 'email', 'phone'],
+        name: undefined,
+        email: undefined,
+        phone: undefined,
+        skills: [],
+        experience: undefined,
+        education: undefined,
+        location: undefined,
+        linkedin: undefined,
+        github: undefined,
+        portfolio: undefined,
+      });
+      setValidationResult({
+        isValid: false,
+        errors: ['Resume parsing failed'],
+        warnings: ['Please enter your information manually'],
+        score: 0
+      });
+      setManualFormVisible(true);
     } finally {
       setUploading(false);
     }
@@ -118,27 +175,148 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
     setDebugModalVisible(true);
   };
 
+  const handleManualFormConfirm = (updatedContactInfo: ContactInfo) => {
+    // Create candidate with updated information
+    const file = fileList[0];
+
+    const fileToUpload = (file.originFileObj || file) as File;
+    if (!(fileToUpload instanceof File)) {
+      return;
+    }
+
+
+    const candidate: Candidate = {
+      id: `candidate_${Date.now()}`,
+      name: updatedContactInfo.name || 'Unknown',
+      email: updatedContactInfo.email || '',
+      phone: updatedContactInfo.phone || '',
+      resumeFile: fileToUpload,
+      score: 0,
+      summary: updatedContactInfo.text.substring(0, 200) + (updatedContactInfo.text.length > 200 ? '...' : ''),
+      interviewDate: new Date(),
+      status: 'pending' as InterviewStatus,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    // Update parsed data with user corrections
+    setParsedData({
+      fileName: file.name,
+      fileSize: file.size || 0,
+      fileType: file.type || '',
+      contactInfo: updatedContactInfo,
+    });
+
+    // Store updated data in debug API
+    DebugApi.storeResumeData({
+      fileName: file.name,
+      fileSize: file.size || 0,
+      fileType: file.type || '',
+      contactInfo: updatedContactInfo,
+    });
+
+    dispatch(addCandidate(candidate));
+    setManualFormVisible(false);
+    setPendingContactInfo(null);
+    onUploadComplete();
+  };
+
+  const handleManualFormCancel = () => {
+    setManualFormVisible(false);
+    setPendingContactInfo(null);
+    // Reset file list to allow re-upload
+    setFileList([]);
+    setParsedData(null);
+    setValidationResult(null);
+  };
+
+  const handleManualEntry = () => {
+    setPendingContactInfo({
+      text: '',
+      missing: ['name', 'email', 'phone'],
+      name: undefined,
+      email: undefined,
+      phone: undefined,
+      skills: [],
+      experience: undefined,
+      education: undefined,
+      location: undefined,
+      linkedin: undefined,
+      github: undefined,
+      portfolio: undefined,
+    });
+    setValidationResult({
+      isValid: false,
+      errors: ['Manual entry required'],
+      warnings: ['Please fill in your information'],
+      score: 0
+    });
+    setManualFormVisible(true);
+  };
+
   const uploadProps: UploadProps = {
     accept: '.pdf,.docx',
     maxCount: 1,
     fileList,
     beforeUpload: (file) => {
-      const isPdf = file.type === 'application/pdf';
-      const isDocx =
-        file.type ===
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      console.log('🔍 DETAILED FILE ANALYSIS:', {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: file.lastModified,
+      });
 
-      if (!isPdf && !isDocx) {
-        message.error('You can only upload PDF or DOCX files!');
-        return false;
+      const fileName = file.name.toLowerCase();
+      const fileExtension = fileName.split('.').pop();
+      const fileType = file.type || '';
+
+      // Primary check: file extension (most reliable)
+      const isValidExtension = fileExtension === 'pdf' || fileExtension === 'docx';
+
+      // Secondary check: MIME type (as backup)
+      const possiblePdfTypes = [
+        'application/pdf',
+        'application/x-pdf',
+        'text/pdf',
+        'application/octet-stream'
+      ];
+
+      const isPdf = possiblePdfTypes.includes(fileType) || fileExtension === 'pdf';
+      const isDocx = fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        (fileType === 'application/zip' && fileExtension === 'docx') ||
+        fileExtension === 'docx';
+
+      console.log('🔍 VALIDATION RESULTS:', {
+        fileName,
+        fileExtension,
+        fileType,
+        isPdf,
+        isDocx,
+        isValidExtension,
+        isValid: isValidExtension
+      });
+
+      // Reject if extension is not valid
+      if (!isValidExtension) {
+        console.error('❌ FILE REJECTED:', {
+          reason: 'Invalid file extension',
+          fileType,
+          fileExtension,
+          fileName
+        });
+        message.error(`Invalid file type. Only PDF and DOCX files are supported. Your file: ${fileName}`);
+        return Upload.LIST_IGNORE;
       }
 
+      // Check file size
       const isLt10M = file.size / 1024 / 1024 < 10;
       if (!isLt10M) {
         message.error('File must be smaller than 10MB!');
-        return false;
+        return Upload.LIST_IGNORE;
       }
 
+      // File is valid
+      console.log('✅ FILE ACCEPTED:', fileName);
       setFileList([file]);
       return false; // Prevent automatic upload
     },
@@ -191,18 +369,18 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
               )}
               <Text strong>Validation Results</Text>
             </div>
-            
+
             <Progress
               percent={validationResult.score}
               strokeColor={ValidationService.getScoreColor(validationResult.score)}
               size="small"
               style={{ marginBottom: '12px' }}
             />
-            
+
             <div style={{ fontSize: '12px' }}>
               <Text type="secondary">Score: {validationResult.score}/100</Text>
             </div>
-            
+
             {validationResult.errors.length > 0 && (
               <div style={{ marginTop: '8px' }}>
                 <Text type="danger" strong>Errors:</Text>
@@ -213,7 +391,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
                 ))}
               </div>
             )}
-            
+
             {validationResult.warnings.length > 0 && (
               <div style={{ marginTop: '8px' }}>
                 <Text type="warning" strong>Warnings:</Text>
@@ -228,27 +406,52 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         )}
 
         <div style={{ textAlign: 'center' }}>
-          <Space size="middle">
-            <Button
-              type="primary"
-              size="large"
-              onClick={handleUpload}
-              loading={uploading}
-              disabled={fileList.length === 0}
-              icon={<UploadOutlined />}
-            >
-              {uploading ? 'Processing...' : 'Start Interview'}
-            </Button>
-
-            {parsedData && (
+          <Space size="middle" direction="vertical" style={{ width: '100%' }}>
+            <Space size="middle">
               <Button
+                type="primary"
                 size="large"
-                onClick={handleDebugClick}
-                icon={<BugOutlined />}
+                onClick={handleUpload}
+                loading={uploading}
+                disabled={fileList.length === 0}
+                icon={<UploadOutlined />}
               >
-                View Parsed Data
+                {uploading ? 'Processing...' : 'Start Interview'}
               </Button>
-            )}
+
+              {parsedData && (
+                <Button
+                  size="large"
+                  onClick={handleDebugClick}
+                  icon={<BugOutlined />}
+                >
+                  View Parsed Data
+                </Button>
+              )}
+            </Space>
+
+            <div style={{ marginTop: '16px' }}>
+              <Text type="secondary">Don't have a resume file?</Text>
+              <br />
+              <Button
+                type="link"
+                size="large"
+                onClick={handleManualEntry}
+                style={{ padding: '4px 8px' }}
+              >
+                Enter Information Manually
+              </Button>
+            </div>
+
+            {/* Temporary debug info */}
+            <div style={{ marginTop: '16px', fontSize: '12px', color: '#666' }}>
+              <Text type="secondary">
+                Having upload issues? Check browser console (F12) for detailed file analysis.
+              </Text>
+            </div>
+
+            {/* Debug tool */}
+            <FileTypeTester />
           </Space>
         </div>
       </Card>
@@ -260,6 +463,14 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         fileSize={parsedData?.fileSize}
         fileType={parsedData?.fileType}
         contactInfo={parsedData?.contactInfo}
+      />
+
+      <ManualDataForm
+        visible={manualFormVisible}
+        parsedData={pendingContactInfo}
+        onConfirm={handleManualFormConfirm}
+        onCancel={handleManualFormCancel}
+        validationResult={validationResult}
       />
     </div>
   );

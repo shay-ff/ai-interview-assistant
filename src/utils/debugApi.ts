@@ -57,7 +57,7 @@ class DebugApi {
 // Make it available globally for browser console access
 (window as any).ResumeDebugApi = DebugApi;
 
-// console the data parsed from resume
-console.log();
+// Log when debug API is initialized
+console.log('ResumeDebugApi initialized and available globally');
 
 export default DebugApi;
