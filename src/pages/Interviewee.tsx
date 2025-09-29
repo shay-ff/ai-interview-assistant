@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Steps } from 'antd';
-import { useSelector } from 'react-redux';
+import { Steps, Button, Card, Typography, Space } from 'antd';
+import { useSelector, useDispatch } from 'react-redux';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import ResumeUpload from '../components/interviewee/ResumeUpload';
 import OptimizedChatInterface from '../components/interviewee/OptimizedChatInterface';
 import Timer from '../components/interviewee/Timer';
+import { showWelcomeBackModal } from '../store/slices/uiSlice';
+import { startNewInterview } from '../store/slices/interviewSlice';
 import type { RootState } from '../store';
+import type { InterviewSession } from '../types/interview';
 
 const { Step } = Steps;
+const { Title, Text } = Typography;
 
 const Interviewee: React.FC = () => {
+  const dispatch = useDispatch();
+  
   // Check if there's already a candidate to determine initial step
   const selectedCandidate = useSelector((state: RootState) => {
     const candidateId = state.candidates?.selectedCandidate;
@@ -45,12 +52,69 @@ const Interviewee: React.FC = () => {
     localStorage.setItem('interviewee-current-step', currentStep.toString());
   }, [currentStep]);
 
-  // Auto-advance to interview if candidate exists
+  // Get current interview session
+  const currentSession = useSelector((state: RootState) => state.interview?.currentSession);
+  
+  // Check if interview is completed
+  const isInterviewCompleted = currentSession?.status === 'completed';
+  
+  // Auto-advance to interview if candidate exists (but not if interview is completed)
   useEffect(() => {
     if (selectedCandidate && currentStep === 0) {
-      setCurrentStep(1);
+      // Check if there's a completed interview - if so, don't auto-advance
+      if (!isInterviewCompleted) {
+        setCurrentStep(1);
+      }
     }
-  }, [selectedCandidate, currentStep]);
+  }, [selectedCandidate, currentStep, isInterviewCompleted]);
+
+  // Auto-advance to completion step when interview is completed
+  useEffect(() => {
+    if (isInterviewCompleted && currentStep === 1) {
+      setCurrentStep(1); // Keep on step 1 but show completion UI
+    }
+  }, [isInterviewCompleted, currentStep]);
+
+  // Handle starting a new interview
+  const handleStartNewInterview = () => {
+    dispatch(startNewInterview());
+    setCurrentStep(0); // Go back to resume upload
+  };
+
+  // Check for unfinished interview sessions on component mount
+  useEffect(() => {
+    const checkForUnfinishedSession = () => {
+      // Check for persisted interview session in localStorage
+      const persistedState = localStorage.getItem('persist:interview');
+      if (persistedState) {
+        try {
+          const parsedState = JSON.parse(persistedState);
+          const interviewState = JSON.parse(parsedState.currentSession || 'null');
+          
+          if (interviewState && selectedCandidate) {
+            const session: InterviewSession = interviewState;
+            
+            // Check if session is unfinished and belongs to current candidate
+            if (
+              session.candidateId === selectedCandidate.id &&
+              (session.status === 'in-progress' || session.status === 'paused') &&
+              session.currentQuestionIndex < session.questions.length
+            ) {
+              // Show welcome back modal
+              dispatch(showWelcomeBackModal(session));
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to parse persisted interview state:', error);
+        }
+      }
+    };
+
+    // Only check when component mounts and candidate is available
+    if (selectedCandidate) {
+      checkForUnfinishedSession();
+    }
+  }, [selectedCandidate, dispatch]);
 
   const steps = [
     {
@@ -63,7 +127,55 @@ const Interviewee: React.FC = () => {
     },
     {
       title: 'Interview Session',
-      content: (
+      content: isInterviewCompleted ? (
+        // Show completion UI
+        <div className="h-full w-full flex items-center justify-center">
+          <Card
+            style={{ 
+              maxWidth: 600, 
+              textAlign: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+          >
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <div>
+                <Title level={2} style={{ color: '#52c41a', margin: 0 }}>
+                  🎉 Interview Completed!
+                </Title>
+                <Text type="secondary" style={{ fontSize: '16px' }}>
+                  Thank you {selectedCandidate?.name} for completing the interview.
+                </Text>
+              </div>
+              
+              <div>
+                <Text>
+                  Your responses have been submitted and will be reviewed by our team. 
+                  You can check your results in the dashboard or start a new interview session.
+                </Text>
+              </div>
+
+              <Space size="middle">
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />}
+                  size="large"
+                  onClick={handleStartNewInterview}
+                >
+                  Start New Interview
+                </Button>
+                <Button 
+                  icon={<ReloadOutlined />}
+                  size="large"
+                  onClick={() => window.location.href = '/interviewer'}
+                >
+                  View Dashboard
+                </Button>
+              </Space>
+            </Space>
+          </Card>
+        </div>
+      ) : (
+        // Show normal interview UI
         <div
           style={{
             display: 'flex',
@@ -94,6 +206,25 @@ const Interviewee: React.FC = () => {
       }}
     >
       <div style={{ padding: '16px' }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: '16px'
+        }}>
+          <Title level={3} style={{ margin: 0 }}>
+            AI Interview Assistant
+          </Title>
+          {(selectedCandidate || currentStep > 0) && (
+            <Button 
+              icon={<PlusOutlined />}
+              onClick={handleStartNewInterview}
+              type="default"
+            >
+              Start New Interview
+            </Button>
+          )}
+        </div>
         <Steps current={currentStep}>
           {steps.map((item) => (
             <Step key={item.title} title={item.title} />
