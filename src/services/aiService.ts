@@ -15,45 +15,45 @@ export class AIQuestionService {
     hard: 120, // 120 seconds
   };
 
-  // Full Stack React/Node question banks
+  // Full Stack React/Node question banks - Optimized for time limits
   private readonly easyQuestions: QuestionTemplate[] = [
     {
-      text: 'What is the difference between let, const, and var in JavaScript?',
+      text: 'What is the difference between let, const, and var? (Quick answer expected)',
       category: 'JavaScript Fundamentals',
       keywords: ['javascript', 'js', 'frontend', 'web'],
     },
     {
-      text: 'Explain what JSX is and how it differs from regular HTML.',
+      text: 'What is JSX in React? One sentence explanation.',
       category: 'React Basics',
       keywords: ['react', 'jsx', 'frontend', 'component'],
     },
     {
-      text: 'What is the purpose of package.json in a Node.js project?',
+      text: 'What is package.json for? (Quick answer)',
       category: 'Node.js Basics',
       keywords: ['node', 'nodejs', 'backend', 'npm'],
     },
     {
-      text: 'How do you handle events in React components?',
+      text: 'How do you handle onClick events in React?',
       category: 'React Events',
       keywords: ['react', 'events', 'onclick', 'frontend'],
     },
     {
-      text: 'What is the difference between == and === in JavaScript?',
+      text: 'What is the difference between == and === ?',
       category: 'JavaScript Fundamentals',
       keywords: ['javascript', 'comparison', 'equality'],
     },
     {
-      text: 'Explain what props are in React and how to use them.',
+      text: 'What are props in React? One sentence.',
       category: 'React Props',
       keywords: ['react', 'props', 'component', 'data'],
     },
     {
-      text: 'What is npm and how do you install packages with it?',
+      text: 'What is npm? Quick explanation.',
       category: 'Package Management',
       keywords: ['npm', 'node', 'packages', 'install'],
     },
     {
-      text: 'How do you create a basic HTTP server in Node.js?',
+      text: 'How to create a basic HTTP server in Node.js?',
       category: 'Node.js HTTP',
       keywords: ['node', 'http', 'server', 'backend'],
     },
@@ -61,42 +61,42 @@ export class AIQuestionService {
 
   private readonly mediumQuestions: QuestionTemplate[] = [
     {
-      text: 'Explain the concept of state in React and how to manage it using useState hook.',
+      text: 'Explain React useState hook with a simple example (60s limit).',
       category: 'React State Management',
       keywords: ['react', 'state', 'usestate', 'hooks'],
     },
     {
-      text: 'What is middleware in Express.js and how do you implement custom middleware?',
+      text: 'What is Express.js middleware? Give one example (60s).',
       category: 'Express Middleware',
       keywords: ['express', 'middleware', 'node', 'backend'],
     },
     {
-      text: 'Describe the React component lifecycle and the useEffect hook.',
+      text: 'Explain useEffect hook in React (60s).',
       category: 'React Lifecycle',
       keywords: ['react', 'lifecycle', 'useeffect', 'hooks'],
     },
     {
-      text: 'How do you handle asynchronous operations in JavaScript? Explain promises and async/await.',
+      text: 'What are promises and async/await in JavaScript? (60s)',
       category: 'Async JavaScript',
       keywords: ['async', 'await', 'promises', 'javascript'],
     },
     {
-      text: 'What is the difference between SQL and NoSQL databases? When would you use each?',
+      text: 'SQL vs NoSQL databases - when to use each? (60s)',
       category: 'Database Design',
       keywords: ['database', 'sql', 'nosql', 'mongodb', 'mysql'],
     },
     {
-      text: 'Explain how to implement authentication in a Node.js application using JWT.',
+      text: 'How to implement JWT authentication in Node.js? (60s)',
       category: 'Authentication',
       keywords: ['jwt', 'auth', 'token', 'security', 'node'],
     },
     {
-      text: "What is Redux and when would you use it over React's built-in state management?",
+      text: 'When would you use Redux over React state? (60s)',
       category: 'State Management',
       keywords: ['redux', 'state', 'management', 'react'],
     },
     {
-      text: 'How do you handle CORS issues in a Node.js/Express application?',
+      text: 'How to handle CORS in Express.js? (60s)',
       category: 'CORS & Security',
       keywords: ['cors', 'express', 'security', 'headers'],
     },
@@ -104,23 +104,7 @@ export class AIQuestionService {
 
   private readonly hardQuestions: QuestionTemplate[] = [
     {
-      text: 'Design a scalable architecture for a real-time chat application using React and Node.js. Consider WebSockets, database design, and performance optimization.',
-      category: 'System Design',
-      keywords: [
-        'architecture',
-        'scalable',
-        'websocket',
-        'realtime',
-        'performance',
-      ],
-    },
-    {
-      text: 'Explain how you would implement server-side rendering (SSR) with React and discuss the trade-offs compared to client-side rendering.',
-      category: 'SSR & Performance',
-      keywords: ['ssr', 'server-side', 'rendering', 'performance', 'seo'],
-    },
-    {
-      text: 'How would you optimize a React application for performance? Discuss code splitting, lazy loading, and memoization strategies.',
+      text: 'Briefly explain React performance optimization techniques (2 min).',
       category: 'React Optimization',
       keywords: [
         'optimization',
@@ -131,34 +115,49 @@ export class AIQuestionService {
       ],
     },
     {
-      text: 'Design a RESTful API for an e-commerce platform. Include authentication, data validation, error handling, and rate limiting.',
+      text: 'Describe a RESTful API design for user authentication (2 min).',
       category: 'API Design',
-      keywords: ['api', 'rest', 'ecommerce', 'validation', 'rate-limiting'],
+      keywords: ['api', 'rest', 'auth', 'validation', 'security'],
     },
     {
-      text: 'Explain how you would implement a microservices architecture using Node.js. Discuss service communication, data consistency, and deployment strategies.',
-      category: 'Microservices',
-      keywords: [
-        'microservices',
-        'architecture',
-        'communication',
-        'deployment',
-      ],
-    },
-    {
-      text: 'How would you handle database transactions and ensure data consistency in a Node.js application with multiple concurrent users?',
+      text: 'How would you handle database transactions in Node.js? (2 min)',
       category: 'Database Transactions',
       keywords: ['transactions', 'consistency', 'concurrent', 'database'],
     },
     {
-      text: 'Implement a custom React hook for managing complex form state with validation. Explain your design decisions.',
+      text: 'Explain how to implement a custom React hook (2 min).',
       category: 'Advanced React',
-      keywords: ['hooks', 'custom', 'form', 'validation', 'state'],
+      keywords: ['hooks', 'custom', 'react', 'state'],
     },
     {
-      text: 'Design a caching strategy for a high-traffic Node.js application. Consider Redis, CDN, and application-level caching.',
+      text: 'What caching strategies would you use for a Node.js app? (2 min)',
       category: 'Caching & Performance',
-      keywords: ['caching', 'redis', 'cdn', 'performance', 'scalability'],
+      keywords: ['caching', 'redis', 'performance', 'scalability'],
+    },
+    {
+      text: 'Describe server-side rendering vs client-side rendering (2 min).',
+      category: 'SSR & Performance',
+      keywords: ['ssr', 'server-side', 'rendering', 'performance', 'seo'],
+    },
+    {
+      text: 'How would you structure a real-time chat app architecture? (2 min)',
+      category: 'System Design',
+      keywords: [
+        'architecture',
+        'websocket',
+        'realtime',
+        'performance',
+      ],
+    },
+    {
+      text: 'Explain microservices vs monolithic architecture (2 min).',
+      category: 'Microservices',
+      keywords: [
+        'microservices',
+        'architecture',
+        'monolithic',
+        'deployment',
+      ],
     },
   ];
 

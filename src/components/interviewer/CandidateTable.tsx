@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Space, Input, Select, Avatar, Typography, Rate, Progress, Modal, Descriptions, Card, Divider } from 'antd';
-import { SearchOutlined, EyeOutlined, DownloadOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, TrophyOutlined } from '@ant-design/icons';
+import { SearchOutlined, EyeOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, TrophyOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import type { ColumnsType } from 'antd/es/table';
 import type { RootState } from '../../store';
@@ -64,39 +64,6 @@ const CandidateTable: React.FC = () => {
     if (score >= 70) return '#faad14';
     if (score >= 60) return '#fa8c16';
     return '#ff4d4f';
-  };
-
-  // Helper function to download resume
-  const handleDownloadResume = (candidate: Candidate) => {
-    try {
-      if (candidate.resumeFile.content) {
-        // Create blob from base64 content
-        const byteCharacters = atob(candidate.resumeFile.content);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: candidate.resumeFile.type });
-        
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = candidate.resumeFile.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      } else {
-        // If no content, show file info instead
-        console.warn('Resume content not available:', candidate.resumeFile.name);
-        alert(`Resume: ${candidate.resumeFile.name} (${(candidate.resumeFile.size / 1024).toFixed(1)} KB)\nContent not stored for download.`);
-      }
-    } catch (error) {
-      console.error('Error downloading resume:', error);
-      alert('Error downloading resume. Please try again.');
-    }
   };
 
   const handleSearch = (value: string) => {
@@ -285,7 +252,7 @@ const CandidateTable: React.FC = () => {
           >
             View
           </Button>
-          <Button 
+          {/* <Button 
             size="small" 
             icon={<DownloadOutlined />}
             onClick={() => handleDownloadResume(record)}
@@ -293,7 +260,7 @@ const CandidateTable: React.FC = () => {
             title={record.resumeFile.content ? `Download ${record.resumeFile.name}` : 'Resume content not available'}
           >
             Resume
-          </Button>
+          </Button> */}
         </Space>
       ),
     },

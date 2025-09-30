@@ -105,6 +105,47 @@ const OptimizedChatInterface: React.FC = () => {
     }
   }, [selectedCandidate, messages.length]);
 
+  // Listen for auto-progression when timer expires
+  useEffect(() => {
+    if (!isIntroductionPhase && interviewSession && currentQuestionIndex < interviewSession.questions.length) {
+      const currentQuestion = interviewSession.questions[currentQuestionIndex];
+      const existingAnswer = interviewSession.answers.find((a: any) => a.questionId === currentQuestion.id);
+      
+      // If there's an answer for this question (auto-submitted or manual), show the next question
+      if (existingAnswer) {
+        const questionMessage: Message = {
+          id: `question-${currentQuestionIndex}-${Date.now()}`,
+          text: `**Question ${currentQuestionIndex + 1}/${interviewSession.questions.length}** (${currentQuestion.difficulty.toUpperCase()} - ${currentQuestion.timeLimit || 60}s)\n\n${currentQuestion.text}`,
+          sender: 'system',
+          timestamp: new Date(),
+        };
+        
+        setMessages(prev => {
+          // Don't add duplicate questions
+          const hasQuestion = prev.some(msg => msg.id.startsWith(`question-${currentQuestionIndex}`));
+          if (!hasQuestion) {
+            return [...prev, questionMessage];
+          }
+          return prev;
+        });
+      }
+    }
+  }, [currentQuestionIndex, isIntroductionPhase, interviewSession]);
+
+  // Trigger evaluation when all questions are answered
+  useEffect(() => {
+    if (!isIntroductionPhase && 
+        interviewSession && 
+        interviewSession.questions && 
+        interviewSession.answers &&
+        interviewSession.answers.length === interviewSession.questions.length &&
+        interviewSession.status !== 'completed' &&
+        !isEvaluating) {
+      console.log('🎯 All questions answered, triggering evaluation...');
+      handleBatchEvaluation();
+    }
+  }, [interviewSession?.answers?.length, interviewSession?.questions?.length, isIntroductionPhase, isEvaluating]);
+
   // Pre-generate questions when candidate is available
   useEffect(() => {
     const generateQuestionsUpfront = async () => {
@@ -372,13 +413,25 @@ const OptimizedChatInterface: React.FC = () => {
 
       const evaluationResult = {
         overallScore,
-        summary: `Interview completed successfully with ${individualEvaluations.length} technical questions. Candidate demonstrated ${overallScore >= 80 ? 'excellent technical knowledge and problem-solving skills' : overallScore >= 60 ? 'solid understanding with room for improvement in technical depth' : 'basic understanding but needs significant improvement in technical skills'}. Response quality was ${overallScore >= 70 ? 'comprehensive and well-structured' : 'adequate but could benefit from more detailed explanations'}.`,
+        summary: `Interview Performance Evaluation: Candidate completed ${individualEvaluations.length} technical questions with an overall score of ${overallScore}/100. ${overallScore >= 80 ? 'Excellent technical performance with strong problem-solving abilities and clear communication.' : overallScore >= 60 ? 'Good technical understanding with solid foundations, some areas for improvement.' : 'Basic technical knowledge demonstrated, significant room for growth and practice needed.'} Interview responses showed ${overallScore >= 70 ? 'comprehensive understanding and well-structured thinking.' : 'adequate effort but could benefit from more detailed explanations and examples.'}`,
         detailedEvaluation: individualEvaluations,
+        questionAnswerPairs: interviewSession.questions.map((question: any, index: number) => {
+          const answer = interviewSession.answers.find((a: any) => a.questionId === question.id);
+          return {
+            questionNumber: index + 1,
+            question: question.text,
+            difficulty: question.difficulty,
+            timeLimit: question.timeLimit || 60,
+            answer: answer?.text || 'No answer provided',
+            timeSpent: answer?.timeSpent || 0,
+            score: individualEvaluations[index]?.score || 0
+          };
+        }),
         recommendations: [
-          overallScore >= 80 ? 'Strong technical performance demonstrates readiness for senior roles' : 'Continue practicing technical skills and problem-solving',
-          'Consider providing more specific examples and detailed explanations',
-          'Focus on explaining thought process and reasoning clearly',
-          'Practice articulating complex technical concepts simply'
+          overallScore >= 80 ? 'Strong technical performance - ready for senior-level challenges' : 'Continue developing technical skills with focused practice',
+          'Work on providing more specific examples and detailed explanations',
+          'Practice explaining complex technical concepts in simple terms',
+          'Focus on clear communication of thought process and reasoning'
         ]
       };
 
@@ -387,10 +440,73 @@ const OptimizedChatInterface: React.FC = () => {
       // Store evaluation result in Redux
       dispatch(setBatchEvaluationResult(evaluationResult));
 
-            // Update candidate with final results\n      if (selectedCandidate) {\n        dispatch(updateCandidate({\n          id: selectedCandidate.id,\n          updates: {\n            status: 'completed',\n            score: evaluationResult.overallScore,\n            summary: evaluationResult.summary,\n            interviewDate: new Date(),\n            updatedAt: new Date(),\n          }\n        }));\n      }\n\n      // CRITICAL: Clear session persistence after successful evaluation\n      console.log('🧹 Clearing interview session data after completion');\n      localStorage.removeItem('persist:interview');\n\n      // Show evaluation results
+      // Update candidate with final results and interview progress
+      if (selectedCandidate) {
+        const totalTimeSpent = interviewSession.answers.reduce((total: number, answer: any) => total + (answer.timeSpent || 0), 0);
+        
+        dispatch(updateCandidate({
+          id: selectedCandidate.id,
+          updates: {
+            status: 'completed',
+            score: evaluationResult.overallScore,
+            summary: evaluationResult.summary,
+            interviewDate: new Date(),
+            updatedAt: new Date(),
+            interviewProgress: {
+              status: 'completed',
+              currentQuestion: interviewSession.questions.length,
+              totalQuestions: interviewSession.questions.length,
+              answersSubmitted: interviewSession.answers.length,
+              timeSpent: totalTimeSpent,
+              completedAt: new Date(),
+              allAnswersFeedback: evaluationResult.questionAnswerPairs.map((qa: any) => ({
+                questionId: `q${qa.questionNumber}`,
+                question: qa.question,
+                answer: qa.answer,
+                timeSpent: qa.timeSpent,
+                timeLimit: qa.timeLimit,
+                score: qa.score,
+                feedback: qa.score >= 80 ? 'Excellent response with clear understanding' : qa.score >= 60 ? 'Good answer showing solid knowledge' : 'Basic attempt, needs more detail and examples',
+                strengths: qa.score >= 70 ? ['Clear understanding', 'Good explanation', 'Well-structured response'] : ['Attempted the question'],
+                improvements: qa.score < 70 ? ['Provide more specific details', 'Include practical examples', 'Explain reasoning more clearly'] : ['Keep up the good work'],
+                confidence: qa.score / 100,
+                timestamp: new Date()
+              }))
+            }
+          }
+        }));
+      }
+
+      // CRITICAL: Clear session persistence after successful evaluation
+      console.log('🧹 Clearing interview session data after completion');
+      localStorage.removeItem('persist:interview');
+
+      // Show detailed evaluation results with Q&A
       const resultMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: `🎉 **Interview Complete!**\n\n**Overall Score: ${evaluationResult.overallScore}/100**\n\n**Summary:** ${evaluationResult.summary}\n\n**Key Recommendations:**\n${evaluationResult.recommendations.map(r => `• ${r}`).join('\n')}\n\nThank you for your time! You can view detailed feedback in your results dashboard.`,
+        text: `🎉 **Interview Complete!**
+
+**Overall Score: ${evaluationResult.overallScore}/100**
+
+**Performance Summary:**
+${evaluationResult.summary}
+
+**Question & Answer Review:**
+${evaluationResult.questionAnswerPairs.map((qa: any) => `
+
+**Question ${qa.questionNumber}: ${qa.question}**
+📊 *Difficulty: ${qa.difficulty.toUpperCase()} | Time Limit: ${qa.timeLimit}s | Time Used: ${qa.timeSpent}s*
+
+💬 **Your Answer:**
+${qa.answer || 'No answer provided'}
+
+⭐ **Score: ${qa.score}/100**
+${'='.repeat(50)}`).join('')}
+
+**📋 Key Recommendations:**
+${evaluationResult.recommendations.map((r: string) => `• ${r}`).join('\n')}
+
+Thank you for your time! You can view your results in the dashboard.`,
         sender: 'system',
         timestamp: new Date(),
       };

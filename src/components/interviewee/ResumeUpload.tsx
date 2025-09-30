@@ -4,6 +4,7 @@ import { UploadOutlined, UserOutlined, MailOutlined, PhoneOutlined } from '@ant-
 import type { UploadFile, UploadProps } from 'antd';
 import { useDispatch } from 'react-redux';
 import { ResumeTextExtractor } from '../../services/resumeTextExtractor';
+import { ResumeParserService } from '../../services/resumeParser';
 import { addCandidate, selectCandidate } from '../../store/slices/candidateSlice';
 import type { Candidate, ResumeFileMetadata } from '../../types/candidate';
 import type { InterviewStatus } from '../../types/common';
@@ -32,6 +33,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
   const dispatch = useDispatch();
   const { message } = App.useApp();
   const [form] = Form.useForm();
+  const resumeParser = new ResumeParserService();
   
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -42,6 +44,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
     name?: string;
     email?: string;
     phone?: string;
+    skills?: string[];
   }>({});
 
   const handleUpload = async (file: File) => {
@@ -75,35 +78,40 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
       
       // Extract contact information using exact regex patterns
       console.log('🔍 Extracting contact information...');
-      const emails = ResumeTextExtractor.extractEmails(text);
-      const phones = ResumeTextExtractor.extractPhones(text);
-      const extractedName = ResumeTextExtractor.extractName(text);
-      console.log('📧 Emails found:', emails);
-      console.log('📱 Phones found:', phones);
-      console.log('👤 Name found:', extractedName);
-      
-      // Validate extracted information
-      const validation = ResumeTextExtractor.validateExtractedInfo(extractedName, emails, phones);
-      console.log('✅ Validation result:', validation);
+      const contactInfo = await resumeParser.parseResume(file);
+      console.log('� Contact info extracted:', contactInfo);
       
       const autoFilled = {
-        name: extractedName || '',
-        email: emails[0] || '',
-        phone: phones[0] || '',
+        name: contactInfo.name || '',
+        email: contactInfo.email || '',
+        phone: contactInfo.phone || '',
+        skills: contactInfo.skills || [],
       };
       
       setAutoFilledData(autoFilled);
 
       // Pre-fill the form with extracted data
-      form.setFieldsValue(autoFilled);
+      form.setFieldsValue({
+        name: autoFilled.name,
+        email: autoFilled.email,
+        phone: autoFilled.phone,
+      });
       
       // Always show manual form for confirmation/completion
       setShowManualForm(true);
       
-      if (validation.isValid) {
-        message.success(`Resume parsed successfully! Found: ${extractedName ? 'name' : ''} ${emails[0] ? 'email' : ''} ${phones[0] ? 'phone' : ''}`);
+      const skillsCount = contactInfo.skills?.length || 0;
+      const foundItems = [
+        contactInfo.name && 'name',
+        contactInfo.email && 'email', 
+        contactInfo.phone && 'phone',
+        skillsCount > 0 && `${skillsCount} skills`
+      ].filter(Boolean);
+      
+      if (foundItems.length > 0) {
+        message.success(`Resume parsed successfully! Found: ${foundItems.join(', ')}`);
       } else {
-        message.warning(`Please provide missing information: ${validation.missing.join(', ')}`);
+        message.warning('Please provide your information to continue');
       }
 
     } catch (error) {
@@ -237,6 +245,28 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
           >
             <Input prefix={<PhoneOutlined />} placeholder="Enter your phone number" />
           </Form.Item>
+
+          {/* Display extracted skills */}
+          {autoFilledData.skills && autoFilledData.skills.length > 0 && (
+            <Form.Item label="Skills Found in Resume">
+              <div style={{ padding: '8px', backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '6px' }}>
+                <Text style={{ fontSize: '12px', color: '#52c41a', display: 'block', marginBottom: '8px' }}>✓ Auto-detected from your resume:</Text>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {autoFilledData.skills.map((skill: string, index: number) => (
+                    <span key={index} style={{
+                      padding: '2px 8px',
+                      backgroundColor: '#1890ff',
+                      color: 'white',
+                      borderRadius: '12px',
+                      fontSize: '12px'
+                    }}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </Form.Item>
+          )}
 
           <Form.Item>
             <Space>
