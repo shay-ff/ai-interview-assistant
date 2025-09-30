@@ -54,15 +54,6 @@ const OptimizedChatInterface: React.FC = () => {
   const timerState = useSelector((state: RootState) => state.interview?.timer);
   const isIntroductionPhase = useSelector((state: RootState) => state.interview?.isIntroductionPhase ?? true);
   
-  // Debug logging (can be removed in production)
-  console.log('Interview State:', {
-    hasCandidate: !!selectedCandidate,
-    hasSession: !!interviewSession,
-    sessionStatus: interviewSession?.status,
-    isIntroPhase: isIntroductionPhase,
-    questionIndex: currentQuestionIndex
-  });
-  
   // Local state
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState('');
@@ -141,7 +132,6 @@ const OptimizedChatInterface: React.FC = () => {
         interviewSession.answers.length === interviewSession.questions.length &&
         interviewSession.status !== 'completed' &&
         !isEvaluating) {
-      console.log('🎯 All questions answered, triggering evaluation...');
       handleBatchEvaluation();
     }
   }, [interviewSession?.answers?.length, interviewSession?.questions?.length, isIntroductionPhase, isEvaluating]);
@@ -153,8 +143,6 @@ const OptimizedChatInterface: React.FC = () => {
         setIsGeneratingQuestions(true);
         
         try {
-          console.log('🤖 Generating questions upfront (Groq Call #1)...');
-          
           const resumeText = selectedCandidate.resumeFile?.content || selectedCandidate.summary || '';
           
           if (!resumeText) {
@@ -164,8 +152,6 @@ const OptimizedChatInterface: React.FC = () => {
 
           // Generate questions using the working AI service
           const questions = aiService.generateQuestions(resumeText);
-
-          console.log('✅ Questions generated successfully:', questions.length);
 
           // Start interview with pre-generated questions
           dispatch(startInterview({
@@ -363,8 +349,6 @@ const OptimizedChatInterface: React.FC = () => {
         throw new Error('Missing interview data for evaluation');
       }
 
-      console.log('🤖 Starting batch evaluation (Groq Call #2)...');
-
       // Simple scoring based on answer quality and completeness
       const individualEvaluations = await Promise.all(
         interviewSession.questions.map(async (question: any) => {
@@ -435,8 +419,6 @@ const OptimizedChatInterface: React.FC = () => {
         ]
       };
 
-      console.log('✅ Batch evaluation completed:', evaluationResult);
-
       // Store evaluation result in Redux
       dispatch(setBatchEvaluationResult(evaluationResult));
 
@@ -478,7 +460,6 @@ const OptimizedChatInterface: React.FC = () => {
       }
 
       // CRITICAL: Clear session persistence after successful evaluation
-      console.log('🧹 Clearing interview session data after completion');
       localStorage.removeItem('persist:interview');
 
       // Show detailed evaluation results with Q&A

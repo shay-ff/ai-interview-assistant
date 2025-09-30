@@ -50,7 +50,6 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
   const handleUpload = async (file: File) => {
     // Clear any existing session data when uploading new resume
     localStorage.removeItem('persist:interview');
-    console.log('Cleared existing session data for new resume upload');
     
     // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
@@ -71,15 +70,11 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
 
     try {
       // Extract text using the new text extractor
-      console.log('🔍 Extracting text from file...', file.name, file.type);
       const text = await ResumeTextExtractor.extractText(file);
-      console.log('✅ Text extracted successfully, length:', text.length);
       setExtractedText(text);
       
       // Extract contact information using exact regex patterns
-      console.log('🔍 Extracting contact information...');
       const contactInfo = await resumeParser.parseResume(file);
-      console.log('� Contact info extracted:', contactInfo);
       
       const autoFilled = {
         name: contactInfo.name || '',
@@ -128,8 +123,6 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
 
   const handleManualSubmit = async (values: any) => {
     try {
-      console.log('📝 Submitting manual form with values:', values);
-      
       // Validate required fields
       if (!values.name?.trim() || !values.email?.trim() || !values.phone?.trim()) {
         console.error('❌ Validation failed: Missing required fields');
@@ -145,8 +138,6 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         lastModified: Date.now(),
         content: extractedText || 'Manual entry - no file uploaded',
       };
-
-      console.log('📄 Default resume file created:', defaultResumeFile);
 
       // Create candidate object with all required fields
       const candidate: Candidate = {
@@ -165,16 +156,11 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         updatedAt: new Date(),
       };
 
-      console.log('👤 Candidate object created:', candidate);
-
       // Add candidate to Redux store
-      console.log('🏪 Dispatching addCandidate action...');
       dispatch(addCandidate(candidate));
       
-      console.log('🎯 Dispatching selectCandidate action...');
       dispatch(selectCandidate(candidate.id));
 
-      console.log('✅ Candidate saved successfully!');
       message.success('Information confirmed! Starting interview...');
       onUploadComplete();
 
