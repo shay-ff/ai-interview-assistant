@@ -186,37 +186,67 @@ const Interviewee: React.FC = () => {
       title: 'Interview Session',
       content: isInterviewCompleted ? (
         // Show completion UI
-        <div className="h-full w-full flex items-center justify-center">
+        <div 
+          style={{
+            height: '100vh',
+            width: '100vw',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#f5f5f5',
+            padding: '20px'
+          }}
+        >
           <Card
             style={{ 
-              maxWidth: 600, 
+              maxWidth: 600,
+              width: '100%',
               textAlign: 'center',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              borderRadius: '12px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              border: '1px solid #e8e8e8',
+              margin: '0 auto'
             }}
+            bodyStyle={{ padding: '40px 32px' }}
           >
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               <div>
-                <Title level={2} style={{ color: '#52c41a', margin: 0 }}>
-                  🎉 Interview Completed!
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
+                <Title level={2} style={{ color: '#52c41a', margin: '0 0 8px 0' }}>
+                  Interview Completed!
                 </Title>
                 <Text type="secondary" style={{ fontSize: '16px' }}>
-                  Thank you {selectedCandidate?.name} for completing the interview.
+                  Thank you <strong>{selectedCandidate?.name}</strong> for completing the interview.
                 </Text>
               </div>
               
-              <div>
-                <Text>
-                  Your responses have been submitted and will be reviewed by our team. 
-                  You can check your results in the dashboard or start a new interview session.
+              <div 
+                style={{
+                  padding: '20px',
+                  backgroundColor: '#f9f9f9',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8e8'
+                }}
+              >
+                <Text style={{ lineHeight: '1.5' }}>
+                  Your responses have been submitted and evaluated by our AI system. 
+                  You can check your detailed results in the dashboard or start a new interview session.
                 </Text>
               </div>
 
-              <Space size="middle">
+              <Space size="large" style={{ justifyContent: 'center', width: '100%' }}>
                 <Button 
                   type="primary" 
                   icon={<PlusOutlined />}
                   size="large"
                   onClick={handleStartNewInterview}
+                  style={{
+                    height: '44px',
+                    minWidth: '160px',
+                    borderRadius: '8px',
+                    fontWeight: '500'
+                  }}
                 >
                   Start New Interview
                 </Button>
@@ -224,6 +254,12 @@ const Interviewee: React.FC = () => {
                   icon={<ReloadOutlined />}
                   size="large"
                   onClick={() => window.location.href = '/interviewer'}
+                  style={{
+                    height: '44px',
+                    minWidth: '140px',
+                    borderRadius: '8px',
+                    fontWeight: '500'
+                  }}
                 >
                   View Dashboard
                 </Button>

@@ -136,7 +136,43 @@ const ChatInterface: React.FC = () => {
       setHasStartedInterview(true);
     }
   }, [interviewSession, currentQuestionIndex, selectedCandidate]);
-
+// Auto-display next question when timer expires and auto-submits
+  useEffect(() => {
+    if (
+      interviewSession && 
+      hasStartedInterview && 
+      currentQuestionIndex >= 0 &&
+      currentQuestionIndex < interviewSession.questions.length
+    ) {
+      // Calculate how many questions should be displayed in chat
+      const expectedQuestionCount = currentQuestionIndex + 1;
+      
+      // Count actual question messages in chat (exclude introduction messages)
+      const actualQuestionCount = messages.filter(
+        m => m.sender === 'system' && m.id.startsWith('q_')
+      ).length;
+      
+      // If we're missing a question message, add it
+      if (actualQuestionCount < expectedQuestionCount) {
+        const missingQuestion = interviewSession.questions[currentQuestionIndex];
+        
+        if (missingQuestion) {
+          const questionMessage: Message = {
+            id: `q_${missingQuestion.id}`,
+            text: `Question ${currentQuestionIndex + 1}/${interviewSession.questions.length}: ${missingQuestion.text}`,
+            sender: 'system',
+            timestamp: new Date(),
+          };
+          
+          // Only add if this specific message doesn't exist
+          const messageExists = messages.some(m => m.id === questionMessage.id);
+          if (!messageExists) {
+            setMessages(prev => [...prev, questionMessage]);
+          }
+        }
+      }
+    }
+  }, [currentQuestionIndex, interviewSession, hasStartedInterview, messages]);
   // Initialize interview with AI-generated questions when candidate is selected
   useEffect(() => {
     const initializeInterview = async () => {

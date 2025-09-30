@@ -7,9 +7,22 @@
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Ant Design](https://img.shields.io/badge/Ant%20Design-0170FE?style=for-the-badge&logo=antdesign&logoColor=white)](https://ant.design/)
 
-## 🎯 **Project Overview**
+## � **Demo & Live Application**
 
-The AI Interview Assistant is a modern, full-stack web application designed to revolutionize the technical interview process. Built with cutting-edge technologies, it provides an end-to-end solution for conducting, evaluating, and managing technical interviews.
+### 🚀 **Live Demo**
+**[🔗 Try the Live Application](https://ai-interview-assistant-amber.vercel.app/)**
+
+### 📹 **Demo Video**
+<!-- Replace with your demo video -->
+**[📺 Watch Demo Video](https://drive.google.com/file/d/1Io2egzWlPTMBVyiOdq2aGvfsxy2vjO9q/view?usp=drive_link)**
+
+*Demo shows complete interview flow: resume upload → AI question generation → real-time evaluation → detailed results*
+
+---
+
+## �🎯 **Project Overview**
+
+The AI Interview Assistant is a modern, React-based frontend application designed to revolutionize the technical interview process. Built with cutting-edge technologies, it provides a comprehensive client-side solution for conducting, evaluating, and managing technical interviews with AI integration.
 
 ### 🏆 **Key Achievements**
 - **Intelligent Resume Parsing**: Extracts contact info, skills, and education from PDF/DOCX files
