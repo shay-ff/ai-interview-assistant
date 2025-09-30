@@ -45,6 +45,10 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
   }>({});
 
   const handleUpload = async (file: File) => {
+    // Clear any existing session data when uploading new resume
+    localStorage.removeItem('persist:interview');
+    console.log('Cleared existing session data for new resume upload');
+    
     // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {
@@ -279,27 +283,11 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         )}
 
         <div style={{ marginTop: 24 }}>
-          <Button 
+                    <Button 
             type="link" 
             onClick={() => setShowManualForm(true)}
           >
             Enter information manually instead
-          </Button>
-          <Button 
-            type="link" 
-            onClick={() => {
-              // Quick test with dummy data
-              const testCandidate = {
-                name: 'Test User',
-                email: 'test@example.com',
-                phone: '+1234567890'
-              };
-              form.setFieldsValue(testCandidate);
-              setShowManualForm(true);
-            }}
-            style={{ marginLeft: 16 }}
-          >
-            Quick Test with Sample Data
           </Button>
         </div>
       </div>

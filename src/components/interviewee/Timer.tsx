@@ -18,14 +18,17 @@ import type { RootState } from '../../store';
 const { Title, Text } = Typography;
 
 interface TimerProps {
-  questionId?: string;
-  timeLimit?: number; // in seconds
-  onTimeUp?: () => void;
+  timeLimit: number;
+  onTimeUp: () => void;
+  onTick?: (timeLeft: number) => void;
+  autoStart?: boolean;
   autoSubmit?: boolean;
+  showTimeLimit?: boolean;
+  warningThreshold?: number;
+  style?: React.CSSProperties;
 }
 
 const Timer: React.FC<TimerProps> = ({ 
-  questionId,
   timeLimit,
   onTimeUp,
   autoSubmit = true 
@@ -71,18 +74,24 @@ const Timer: React.FC<TimerProps> = ({
   // Main timer logic - ONLY runs during technical phase
   useEffect(() => {
     let interval: number | null = null;
+    let lastReduxUpdate = 0;
+    const REDUX_UPDATE_INTERVAL = 5000; // Update Redux every 5 seconds instead of every second
 
     // OPTIMIZATION: Timer only runs when NOT in introduction phase
     if (isActive && localTimeRemaining > 0 && isInterviewActive && !isIntroductionPhase) {
       interval = setInterval(() => {
         setLocalTimeRemaining((prevTime: number) => {
           const newTime = prevTime - 1;
+          const now = Date.now();
           
-          // Update Redux state every second
-          dispatch(updateTimer({
-            remainingTime: newTime,
-            isActive: true,
-          }));
+          // Only update Redux occasionally to prevent performance issues
+          if (now - lastReduxUpdate >= REDUX_UPDATE_INTERVAL || newTime <= 10 || newTime === 0) {
+            lastReduxUpdate = now;
+            dispatch(updateTimer({
+              remainingTime: newTime,
+              isActive: true,
+            }));
+          }
           
           // Auto-submit when time reaches 0
           if (newTime === 0) {

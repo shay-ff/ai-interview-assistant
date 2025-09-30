@@ -268,17 +268,17 @@ export const selectFilteredCandidateCount = createSelector(
 
 // Complex selectors
 export const selectCandidateById = createSelector(
-  [selectAllCandidates, (state: RootState, candidateId: string) => candidateId],
+  [selectAllCandidates, (_state: RootState, candidateId: string) => candidateId],
   (candidates, candidateId) => candidates.find(c => c.id === candidateId) || null
 );
 
 export const selectCandidatesByStatus = createSelector(
-  [selectAllCandidates, (state: RootState, status: string) => status],
+  [selectAllCandidates, (_state: RootState, status: string) => status],
   (candidates, status) => candidates.filter(c => c.status === status)
 );
 
 export const selectTopCandidates = createSelector(
-  [selectAllCandidates, (state: RootState, limit: number) => limit],
+  [selectAllCandidates, (_state: RootState, limit: number) => limit],
   (candidates, limit) => {
     return [...candidates]
       .sort((a, b) => b.score - a.score)

@@ -25,7 +25,7 @@ interface InterviewIntegrationProps {
 const InterviewIntegration: React.FC<InterviewIntegrationProps> = ({ candidateId }) => {
   const dispatch = useDispatch();
   const candidate = useSelector((state: RootState) => 
-    state.candidates?.list.find(c => c.id === candidateId)
+    state.candidates?.list.find((c: any) => c.id === candidateId)
   );
   const currentSession = useSelector((state: RootState) => state.interview?.currentSession);
   
@@ -138,7 +138,7 @@ const InterviewIntegration: React.FC<InterviewIntegrationProps> = ({ candidateId
             </Text>
             <br />
             <Text type="secondary">
-              Time spent: {Math.floor(candidate.interviewProgress.timeSpent / 60)}m {candidate.interviewProgress.timeSpent % 60}s
+              Time spent: {Math.floor((candidate.interviewProgress.timeSpent || 0) / 60)}m {(candidate.interviewProgress.timeSpent || 0) % 60}s
             </Text>
           </div>
         )}

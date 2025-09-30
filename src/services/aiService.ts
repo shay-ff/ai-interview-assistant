@@ -1,4 +1,4 @@
-import type { Question, QuestionGenerationResult } from '../types/interview';
+import type { Question } from '../types/interview';
 import type { QuestionDifficulty } from '../types/common';
 
 interface QuestionTemplate {

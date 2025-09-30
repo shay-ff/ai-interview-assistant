@@ -25,12 +25,12 @@ const ChatInterface: React.FC = () => {
     
     // If a candidate is selected, use it
     if (candidateId) {
-      return candidatesList.find(c => c.id === candidateId) || null;
+      return candidatesList.find((c: any) => c.id === candidateId) || null;
     }
     
     // Otherwise, auto-select the most recent candidate
     if (candidatesList.length > 0) {
-      const mostRecent = candidatesList.reduce((latest, candidate) => {
+      const mostRecent = candidatesList.reduce((latest: any, candidate: any) => {
         const candidateDate = new Date(candidate.createdAt);
         const latestDate = new Date(latest.createdAt);
         return candidateDate > latestDate ? candidate : latest;
@@ -82,6 +82,60 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Handle restored interview sessions
+  useEffect(() => {
+    if (interviewSession && interviewSession.answers && interviewSession.answers.length > 0) {
+      // Rebuild message history from restored session
+      const restoredMessages: Message[] = [
+        {
+          id: '1',
+          text: selectedCandidate ? 
+            `Welcome back ${selectedCandidate.name}! Continuing your interview session...` :
+            'Welcome back! Continuing your interview session...',
+          sender: 'system',
+          timestamp: new Date(),
+        }
+      ];
+
+      // Add previous Q&A pairs
+      interviewSession.answers.forEach((answer: any, index: number) => {
+        const question = interviewSession.questions[index];
+        if (question) {
+          // Add question message
+          restoredMessages.push({
+            id: `q-${index}`,
+            text: question.text,
+            sender: 'system',
+            timestamp: new Date(answer.timestamp),
+          });
+
+          // Add answer message
+          restoredMessages.push({
+            id: `a-${index}`,
+            text: answer.text,
+            sender: 'user',
+            timestamp: new Date(answer.timestamp),
+          });
+        }
+      });
+
+      // Add current question if not answered yet
+      const currentQuestion = interviewSession.questions[currentQuestionIndex];
+      if (currentQuestion && currentQuestionIndex >= interviewSession.answers.length) {
+        restoredMessages.push({
+          id: `current-q-${currentQuestionIndex}`,
+          text: currentQuestion.text,
+          sender: 'system',
+          timestamp: new Date(),
+        });
+      }
+
+      setMessages(restoredMessages);
+      setQuestionsGenerated(true);
+      setHasStartedInterview(true);
+    }
+  }, [interviewSession, currentQuestionIndex, selectedCandidate]);
 
   // Initialize interview with AI-generated questions when candidate is selected
   useEffect(() => {

@@ -187,7 +187,7 @@ export class EnhancedAIService {
   }
 
   private localValidation(
-    question: string,
+    _question: string,
     answer: string,
     timeSpent: number,
     timeLimit: number
@@ -226,13 +226,13 @@ export class EnhancedAIService {
     };
   }
 
-  private generateLocalFeedback(score: number, length: number, timeRatio: number): string {
+  private generateLocalFeedback(score: number, answerLength: number, timeRatio: number): string {
     if (score >= 80) {
-      return 'Excellent answer! You provided detailed information and used your time effectively.';
+      return `Excellent answer! Well-structured response with ${answerLength > 200 ? 'comprehensive' : 'good'} detail. ${timeRatio < 0.8 ? 'Efficient time management.' : ''}`;
     } else if (score >= 60) {
-      return 'Good answer. Consider adding more specific examples to strengthen your response.';
+      return `Good answer with room for improvement. ${answerLength < 100 ? 'Consider providing more detail.' : 'Good level of detail.'} ${timeRatio > 0.9 ? 'Consider working on time management.' : ''}`;
     } else {
-      return 'Your answer could be improved with more detail and specific examples from your experience.';
+      return `Answer needs improvement. ${answerLength < 50 ? 'More detailed explanation needed.' : ''} ${timeRatio > 0.95 ? 'Focus on concise, timely responses.' : ''}`;
     }
   }
 

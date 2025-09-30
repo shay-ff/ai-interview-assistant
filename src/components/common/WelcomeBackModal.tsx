@@ -1,11 +1,12 @@
 import React from 'react';
-import { Modal, Typography, Button, Card, Progress, Tag, Space, Descriptions } from 'antd';
+import { Modal, Typography, Button, Card, Progress, Tag, Descriptions } from 'antd';
 import { ClockCircleOutlined, PlayCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import type { RootState } from '../../store';
 import { hideWelcomeBackModal } from '../../store/slices/uiSlice';
-import { restoreSession } from '../../store/slices/interviewSlice';
+import { restoreSession, resetInterview } from '../../store/slices/interviewSlice';
+import { updateCandidate, clearCandidates } from '../../store/slices/candidateSlice';
 
 const { Title, Text } = Typography;
 
@@ -13,21 +14,60 @@ const WelcomeBackModal: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
-  const showWelcomeBack = useSelector((state: RootState) => state.ui.showWelcomeBack);
-  const welcomeBackSession = useSelector((state: RootState) => state.ui.welcomeBackSession);
-  const selectedCandidate = useSelector((state: RootState) => state.interview.selectedCandidate);
+  const showWelcomeBack = useSelector((state: RootState) => state.ui?.showWelcomeBack || false);
+  const welcomeBackSession = useSelector((state: RootState) => state.ui?.welcomeBackSession || null);
+  const selectedCandidate = useSelector((state: RootState) => state.candidates?.selectedCandidate ? 
+    state.candidates.list.find((c: any) => c.id === state.candidates?.selectedCandidate) : null);
 
   const handleContinueInterview = () => {
     if (welcomeBackSession) {
-      dispatch(restoreSession(welcomeBackSession));
+      // Ensure we restore the session with the correct state
+      const sessionToRestore = {
+        ...welcomeBackSession,
+        // Ensure timer doesn't auto-start until user is ready
+        timerState: {
+          ...welcomeBackSession.timerState,
+          isActive: false, // Don't auto-start timer
+        },
+        status: 'paused' // Set to paused so user can manually start
+      };
+      
+      dispatch(restoreSession(sessionToRestore));
       dispatch(hideWelcomeBackModal());
       navigate('/interviewee');
     }
   };
 
   const handleStartFresh = () => {
+    // Reset interview state completely
+    dispatch(resetInterview());
+    
+    // CRITICAL: Clear ALL persisted data including candidates
+    localStorage.removeItem('persist:interview');
+    localStorage.removeItem('persist:candidates');
+    localStorage.removeItem('interviewee-current-step');
+    
+    // Clear candidate state from Redux as well
+    dispatch(clearCandidates());
+    
+    // Reset candidate's interview status if we have a selected candidate
+    if (selectedCandidate) {
+      dispatch(updateCandidate({
+        id: selectedCandidate.id,
+        updates: {
+          status: 'pending',
+          score: 0,
+          updatedAt: new Date(),
+        }
+      }));
+    }
+    
     dispatch(hideWelcomeBackModal());
-    navigate('/interviewee');
+    
+    // Navigate to interviewee page and trigger step reset
+    navigate('/interviewee', { 
+      state: { resetToStep: 0, clearSession: true } // Pass clear session flag
+    });
   };
 
   const handleClose = () => {

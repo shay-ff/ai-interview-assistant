@@ -168,7 +168,7 @@ export const selectHasUnreadNotifications = createSelector(
 );
 
 export const selectNotificationsByType = createSelector(
-  [selectActiveNotifications, (state: RootState, type: string) => type],
+  [selectActiveNotifications, (_state: RootState, type: string) => type],
   (notifications, type) => notifications.filter(n => n.type === type)
 );
 

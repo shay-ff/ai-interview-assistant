@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { BaseComponentProps, WithError, WithLoading, ActiveTab } from './common';
 import type { Candidate } from './candidate';
-import type { InterviewSession, Question, Answer, ChatMessage, ScoreResult } from './interview';
+import type { InterviewSession, Question, ChatMessage, ScoreResult } from './interview';
 import type { Notification } from './store';
 
 // Layout and common component props

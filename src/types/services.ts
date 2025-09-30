@@ -1,6 +1,6 @@
-import { ServiceResponse, AppError, SupportedFileType } from './common';
-import { ContactInfo, ResumeParseResult } from './candidate';
-import { Question, QuestionGenerationResult, ScoreResult, TimerConfig } from './interview';
+import type { ServiceResponse, AppError, SupportedFileType } from './common';
+import type { ContactInfo, ResumeParseResult } from './candidate';
+import type { Question, QuestionGenerationResult, ScoreResult, TimerConfig } from './interview';
 
 // Resume Parser Service types
 export interface ResumeParserService {

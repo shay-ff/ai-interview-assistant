@@ -6,13 +6,7 @@ import type { ContactInfo } from '../types/candidate';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 export class ResumeParserService {
-  private readonly supportedTypes = [
-    'application/pdf', 
-    'application/x-pdf', 
-    'text/pdf',
-    'application/octet-stream',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ];
+  
 
   async parseResume(file: File): Promise<ContactInfo> {
     try {
@@ -176,7 +170,6 @@ export class ResumeParserService {
       /\+\d{1,3}\s?\d{6,14}/g
     ];
 
-    let phoneFound = false;
     for (const pattern of phonePatterns) {
       const phoneMatch = text.match(pattern);
       if (phoneMatch && phoneMatch.length > 0) {
@@ -198,7 +191,7 @@ export class ResumeParserService {
             contactInfo.phone = phone;
           }
         }
-        phoneFound = true;
+        // Phone number found
         break;
       }
     }

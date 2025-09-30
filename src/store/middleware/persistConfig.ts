@@ -154,5 +154,5 @@ const rootReducer = combineReducers({
   ui: uiSlice.reducer, // Not persisted
 });
 
-export const persistedReducer = persistReducer(persistConfig, rootReducer);
+export const persistedReducer = persistReducer(persistConfig, rootReducer as any);
 export type RootState = ReturnType<typeof rootReducer>;

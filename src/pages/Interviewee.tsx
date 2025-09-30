@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Steps, Button, Card, Typography, Space } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
+import { useLocation } from 'react-router-dom';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import ResumeUpload from '../components/interviewee/ResumeUpload';
 import OptimizedChatInterface from '../components/interviewee/OptimizedChatInterface';
 import Timer from '../components/interviewee/Timer';
 import { showWelcomeBackModal } from '../store/slices/uiSlice';
-import { startNewInterview } from '../store/slices/interviewSlice';
+import { resetInterview } from '../store/slices/interviewSlice';
+import { clearCandidates } from '../store/slices/candidateSlice';
 import type { RootState } from '../store';
 import type { InterviewSession } from '../types/interview';
 
@@ -15,6 +17,8 @@ const { Title, Text } = Typography;
 
 const Interviewee: React.FC = () => {
   const dispatch = useDispatch();
+  const location = useLocation();
+  const hasCheckedForSession = useRef(false);
   
   // Check if there's already a candidate to determine initial step
   const selectedCandidate = useSelector((state: RootState) => {
@@ -22,11 +26,11 @@ const Interviewee: React.FC = () => {
     const candidatesList = state.candidates?.list || [];
     
     if (candidateId) {
-      return candidatesList.find(c => c.id === candidateId) || null;
+      return candidatesList.find((c: any) => c.id === candidateId) || null;
     }
     
     if (candidatesList.length > 0) {
-      const mostRecent = candidatesList.reduce((latest, candidate) => {
+      const mostRecent = candidatesList.reduce((latest: any, candidate: any) => {
         const candidateDate = new Date(candidate.createdAt);
         const latestDate = new Date(latest.createdAt);
         return candidateDate > latestDate ? candidate : latest;
@@ -46,6 +50,27 @@ const Interviewee: React.FC = () => {
     }
     return selectedCandidate ? 1 : 0;
   });
+
+  // Handle navigation state for step reset
+  useEffect(() => {
+    const state = location.state as { resetToStep?: number; clearSession?: boolean } | null;
+    if (state?.resetToStep !== undefined) {
+      console.log('Resetting to step:', state.resetToStep);
+      setCurrentStep(state.resetToStep);
+      
+      // If clearSession flag is set, clear all persistent data
+      if (state.clearSession) {
+        console.log('Clearing all session data for fresh start');
+        localStorage.removeItem('persist:interview');
+        localStorage.removeItem('persist:candidates');
+        localStorage.removeItem('interviewee-current-step');
+        hasCheckedForSession.current = false; // Reset session check flag
+      }
+      
+      // Clear the navigation state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Persist step changes
   useEffect(() => {
@@ -77,13 +102,33 @@ const Interviewee: React.FC = () => {
 
   // Handle starting a new interview
   const handleStartNewInterview = () => {
-    dispatch(startNewInterview());
-    setCurrentStep(0); // Go back to resume upload
+    // Clear all persistent data for completely fresh start
+    localStorage.removeItem('persist:interview');
+    localStorage.removeItem('persist:candidates');
+    localStorage.removeItem('interviewee-current-step');
+    
+    // Reset session check flag
+    hasCheckedForSession.current = false;
+    
+    // CRITICAL: Clear Redux state for fresh start
+    dispatch(resetInterview());
+    dispatch(clearCandidates()); // Clear all candidates
+    
+    // Go back to resume upload
+    setCurrentStep(0);
+    
+    console.log('Started completely new interview session with cleared candidate');
   };
 
-  // Check for unfinished interview sessions on component mount
+  // Check for unfinished interview sessions ONLY on component mount
   useEffect(() => {
     const checkForUnfinishedSession = () => {
+      // Don't show modal if interview is currently active
+      if (currentStep === 2) {
+        console.log('Interview is active, skipping welcome back modal');
+        return;
+      }
+
       // Check for persisted interview session in localStorage
       const persistedState = localStorage.getItem('persist:interview');
       if (persistedState) {
@@ -94,27 +139,39 @@ const Interviewee: React.FC = () => {
           if (interviewState && selectedCandidate) {
             const session: InterviewSession = interviewState;
             
-            // Check if session is unfinished and belongs to current candidate
-            if (
+            // Enhanced validation - check if session is actually resumable
+            const isValidSession = (
               session.candidateId === selectedCandidate.id &&
               (session.status === 'in-progress' || session.status === 'paused') &&
-              session.currentQuestionIndex < session.questions.length
-            ) {
+              session.currentQuestionIndex < session.questions.length &&
+              session.questions && session.questions.length > 0 &&
+              session.startTime && // Ensure session actually started
+              Date.now() - new Date(session.startTime).getTime() < 24 * 60 * 60 * 1000 // Less than 24 hours old
+            );
+            
+            if (isValidSession) {
+              console.log('Found valid unfinished session, showing welcome back modal');
               // Show welcome back modal
               dispatch(showWelcomeBackModal(session));
+            } else {
+              console.log('Session exists but not valid for resuming, clearing...');
+              localStorage.removeItem('persist:interview');
             }
           }
         } catch (error) {
           console.warn('Failed to parse persisted interview state:', error);
+          // Clear corrupted data
+          localStorage.removeItem('persist:interview');
         }
       }
     };
 
-    // Only check when component mounts and candidate is available
-    if (selectedCandidate) {
+    // Only check ONCE when component mounts - use a ref to track if already checked
+    if (selectedCandidate && !hasCheckedForSession.current) {
+      hasCheckedForSession.current = true;
       checkForUnfinishedSession();
     }
-  }, [selectedCandidate, dispatch]);
+  }, []); // Empty dependency array - only run on mount
 
   const steps = [
     {
@@ -188,7 +245,13 @@ const Interviewee: React.FC = () => {
             <OptimizedChatInterface />
           </div>
           <div style={{ width: '320px' }}>
-            <Timer />
+            <Timer 
+              timeLimit={1800} // 30 minutes default
+              onTimeUp={() => {
+                console.log('Time is up!');
+                // Handle time up logic
+              }}
+            />
           </div>
         </div>
       ),

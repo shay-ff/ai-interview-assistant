@@ -53,7 +53,7 @@ export class OptimizedAIService {
   /**
    * Generate mock questions when API is unavailable
    */
-  private static generateMockQuestions(difficulty: QuestionDifficulty, count: number): Question[] {
+  private static generateMockQuestions(_difficulty: QuestionDifficulty, count: number): Question[] {
     const mockQuestions = [
       {
         id: 'mock_1',
@@ -180,7 +180,7 @@ export class OptimizedAIService {
     return {
       overallScore: Math.min(baseScore, 100),
       summary: `Great job completing ${answeredCount}/${totalCount} questions! You showed good technical understanding and communication skills.`,
-      detailedEvaluation: questions.map((q, index) => {
+      detailedEvaluation: questions.map((q, _index) => {
         const answer = answers.find(a => a.questionId === q.id);
         const score = answer?.text.trim() ? Math.floor(Math.random() * 30) + 60 : 0;
         

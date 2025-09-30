@@ -1,4 +1,4 @@
-import type { QuestionDifficulty, ServiceResponse, BaseComponentProps, WithError, WithLoading } from './common';
+import type { QuestionDifficulty, ServiceResponse, BaseComponentProps, WithError } from './common';
 
 export interface Question {
   id: string;

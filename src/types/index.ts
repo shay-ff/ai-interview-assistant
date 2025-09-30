@@ -13,9 +13,6 @@ export * from './store';
 // Export service types
 export * from './services';
 
-// Export component prop types
-export * from './components';
-
 // Re-export commonly used type combinations
 export type { 
   RootState,
@@ -23,14 +20,6 @@ export type {
   CandidateState,
   UIState
 } from './store';
-
-export type {
-  Candidate,
-  Question,
-  Answer,
-  InterviewSession,
-  TimerState
-} from './candidate';
 
 export type {
   AppError,
