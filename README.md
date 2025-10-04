@@ -2,6 +2,8 @@
 
 > **A comprehensive React-based intelligent interview platform that automates resume parsing, conducts AI-powered technical interviews, and provides detailed candidate evaluations.**
 
+![](./screenshots/proof-of-work.png)
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
